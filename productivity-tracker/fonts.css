@@ -1,0 +1,6 @@
+/* Self-hosted web fonts, Latin subsets, all under the SIL Open Font License 1.1 (fonts/OFL.txt).
+   Archivo (Omnibus-Type), Inter (Rasmus Andersson), Geist Mono (Vercel), Instrument Serif (Rodrigo Fuenzalida, Jordan Egstad). */
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 500 700; font-display: swap; src: url(fonts/archivo-500-700.woff2) format("woff2"); }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(fonts/inter-400-600.woff2) format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 400 500; font-display: swap; src: url(fonts/geist-mono-400-500.woff2) format("woff2"); }
+@font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; font-display: swap; src: url(fonts/instrument-serif-italic.woff2) format("woff2"); }
