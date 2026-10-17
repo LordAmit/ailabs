@@ -38,13 +38,16 @@ the Pages repository root; without it GitHub runs Jekyll over the files on branc
 Everything is stored in the browser's localStorage for the site you opened. Each origin
 (`localhost:8000`, your Pages URL, an installed copy) has its own data. Clearing site data deletes it.
 
+Deleting a project, task or record happens at once. A bar at the bottom offers Undo for eight
+seconds and brings everything back, records included.
+
 Backup: menu, Export, saves `productivity-backup.json`. Import offers two choices:
 
 - Merge: keeps what is here, adds rows from the file, and takes the file's version of any row that
   exists in both. Merging the same file twice changes nothing the second time.
 - Replace all: deletes current data first.
 
-Keep a phone and a desktop in step by exporting on one and merging on the other. Backups from the
+To use a phone and a desktop with the same data, export on one and merge on the other. Backups from the
 archived server or from older versions of this app (version 1, integer ids) import fine; their rows
 get new ids, so merge such a file only once.
 
@@ -58,6 +61,32 @@ running.
 The timer button in the top bar toggles a ticking sound that plays only while a stopwatch or
 countdown runs. The clip is "Household kitchen timer" from Pixabay (`sounds/kitchen-timer.mp3`),
 Pixabay Content License.
+
+## Tour
+
+Menu, Guided tour: seven cards over the Projects view that point at the mode row, a play button,
+the running bar, the tabs, and the menu for backup and theme. On a fresh copy the empty Projects
+view also offers "Take the tour" until it has been finished or skipped once. The tour never
+starts on its own and changes no data.
+
+## Sub-tasks
+
+In a project, "+ Sub" on a task row adds a task under it, up to three levels. A parent can have
+its own timer. Each row shows the time of the task and everything under it; reports stay by
+project. Deleting a task deletes its sub-tasks after a confirmation.
+
+## Tasks from a list
+
+In the New task dialog, paste text with line breaks to add one task per non-empty line. Leading
+list markers such as "- ", "1. " or "[ ] " are dropped. More than five lines ask for confirmation.
+
+## Keyboard
+
+Press ? for the list. 1 to 4 switch views, N new project, T add a task to the open project, R add
+a record, S stops the timer or starts one on the open project or else the last tracked project,
+M switches stopwatch and countdown, left and right arrows move the Calendar month, comma opens
+the menu, Esc closes a dialog or goes back to the project list. Keys do nothing while you type
+in a field. The list is also in the menu under Help.
 
 ## Appearance
 

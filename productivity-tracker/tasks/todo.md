@@ -322,6 +322,90 @@ Note: Task 12 moved `static/` and `templates/index.html` into `web/`. On 2026-10
 
 **Estimated scope:** S
 
+## Task 18: Guided tour
+
+**Description:** Seven cards over the Projects view pointing at the mode row, a play button, the running bar, the tabs and the menu (backup, theme). Started from the menu or from the empty Projects view; never by itself. No sample data: demo card and demo running bar in the DOM only. See DECISIONS.md 2026-10-16.
+
+**Acceptance criteria:**
+- [x] Menu, Help, Guided tour starts it; "Take the tour" in the empty Projects view until finished or skipped once
+- [x] Page is inert under the tour; Skip, Back, Next/Done, arrow keys, Esc
+- [x] Stored data identical before and after, with and without projects
+- [ ] Manual check by user: tests/MANUAL.md, Guided tour section
+
+**Verification:**
+- [x] `node --check app.js`; store tests pass; headless Chrome run through all cards with and without data and at phone width (2026-10-16)
+
+**Files touched:** app.js, index.html, style.css, SPEC.md, README.md, DECISIONS.md, TODO.md, tests/MANUAL.md
+
+**Estimated scope:** S
+
+## Task 19: Keyboard shortcuts
+
+**Description:** Single-key shortcuts with a "?" list dialog, also under Help in the menu. Key map in README.md; rationale in DECISIONS.md 2026-10-16.
+
+**Acceptance criteria:**
+- [x] ? opens and closes the list; every listed key does what it says
+- [x] No key acts while a field has focus, while a dialog is open, or during the tour
+- [ ] Manual check by user: tests/MANUAL.md, Keyboard shortcuts section
+
+**Verification:**
+- [x] `node --check app.js`; store tests pass; headless Chrome run over every key (2026-10-16)
+
+**Files touched:** app.js, style.css, SPEC.md, README.md, DECISIONS.md, TODO.md, tests/MANUAL.md
+
+**Estimated scope:** S
+
+## Task 20: Paste to create many tasks
+
+**Description:** In New task, a multi-line paste creates one task per non-empty line, markers stripped, confirmation above five lines. See DECISIONS.md 2026-10-16.
+
+**Acceptance criteria:**
+- [x] Three pasted lines create three tasks in order and close the dialog
+- [x] One line pastes into the field as usual; Edit task is unchanged
+- [x] Six lines ask first; declining creates nothing
+- [ ] Manual check by user: tests/MANUAL.md, Paste tasks section
+
+**Verification:**
+- [x] `node --check app.js`; headless Chrome with synthetic paste events (2026-10-16)
+
+**Files touched:** app.js, SPEC.md, README.md, DECISIONS.md, TODO.md, tests/MANUAL.md
+
+**Estimated scope:** XS
+
+## Task 21: Sub-tasks
+
+**Description:** `parent_id` on tasks, three levels, subtree delete, tree in project detail with rolled-up time, "+ Sub" link, indented task select. See DECISIONS.md 2026-10-16.
+
+**Acceptance criteria:**
+- [x] Store: parent in same project, fourth level rejected, subtree delete unlinks records, field survives export and import, bad or cyclic parents rejected on import, old data loads
+- [x] Project detail shows the tree with rolled-up time; "+ Sub" absent on the third level
+- [x] Deleting a parent asks and names the count; declining keeps everything
+- [ ] Manual check by user: tests/MANUAL.md, Sub-tasks section
+
+**Verification:**
+- [x] `node --test tests/store.test.mjs` 25 pass; `node --check`; headless Chrome run over the project view, dialogs and delete (2026-10-16)
+
+**Files touched:** store.js, app.js, style.css, tests/store.test.mjs, SPEC.md, README.md, DECISIONS.md, TODO.md, tests/MANUAL.md
+
+**Estimated scope:** M
+
+## Task 22: Undo after delete
+
+**Description:** Delete at once, keep the rows for eight seconds, Undo merges them back. Confirmations removed. See DECISIONS.md 2026-10-16.
+
+**Acceptance criteria:**
+- [x] Record, task subtree and project deletes each show the bar; Undo restores every row and record link
+- [x] After eight seconds the bar is gone and the delete stands
+- [x] The bar sits above the running bar while a timer runs
+- [ ] Manual check by user: tests/MANUAL.md, Undo section
+
+**Verification:**
+- [x] Store test for merge-based restore, 26 pass; headless Chrome run over all three deletes and the timeout (2026-10-16)
+
+**Files touched:** app.js, index.html, style.css, tests/store.test.mjs, SPEC.md, README.md, DECISIONS.md, tests/MANUAL.md
+
+**Estimated scope:** S
+
 ## Checkpoint: Complete
 - [ ] SPEC.md success criteria 1 to 16 met
 - [ ] Ready for review

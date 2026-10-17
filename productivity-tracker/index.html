@@ -84,7 +84,24 @@ try {
     <div class="runtime" id="runTime">0:00</div>
     <button class="stop-btn" id="stopBtn" title="Stop"><svg class="ico"><use href="#i-stop"/></svg></button>
   </div>
+  <div id="undo" class="undo" role="status" hidden><span id="undoText"></span><button id="undoBtn">Undo</button></div>
 
+</div>
+
+<!-- guided tour: a dimmed overlay with a cut-out around one control and a card next to it -->
+<div id="tour" class="tour" hidden>
+  <div class="tour-hole"></div>
+  <div class="tour-card" role="dialog" aria-labelledby="tourTitle">
+    <div class="label" id="tourStep"></div>
+    <h2 id="tourTitle"></h2>
+    <p id="tourText"></p>
+    <div id="tourExtra"></div>
+    <div class="actions">
+      <button class="btn" id="tourSkip">Skip</button>
+      <button class="btn" id="tourBack">Back</button>
+      <button class="btn primary" id="tourNext">Next</button>
+    </div>
+  </div>
 </div>
 
 <dialog id="dlg"></dialog>

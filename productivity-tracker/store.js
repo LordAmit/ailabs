@@ -18,6 +18,23 @@
   const byProject = (a, b) => (a.archived - b.archived) || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   const byTask = (a, b) => (a.completed - b.completed) || (b.created - a.created);
   const MAX_COUNTDOWN_MINUTES = 720;
+  const MAX_TASK_DEPTH = 3;  // a task, a sub-task, a sub-sub-task
+  // 1 for a top-level task. Fails on a missing parent or a chain longer than MAX_TASK_DEPTH (which also catches a cycle).
+  function taskDepth(tasks, t) {
+    let d = 1;
+    for (let cur = t; cur.parent_id != null; d++) {
+      cur = tasks.find(x => x.id === cur.parent_id) || fail(400, 'parent task not found');
+      if (cur.project_id !== t.project_id) fail(400, 'parent task is in another project');
+      if (d >= MAX_TASK_DEPTH) fail(400, `tasks nest at most ${MAX_TASK_DEPTH} levels`);
+    }
+    return d;
+  }
+  // The task and everything nested under it.
+  function subtree(tasks, id) {
+    const ids = new Set([id]);
+    for (let grew = true; grew;) { grew = false; for (const t of tasks) if (t.parent_id != null && ids.has(t.parent_id) && !ids.has(t.id)) { ids.add(t.id); grew = true; } }
+    return ids;
+  }
   const uuid = () => (root.crypto && root.crypto.randomUUID) ? root.crypto.randomUUID()
     : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
 
@@ -27,7 +44,7 @@
     const P = projects.map(p => { const id = uuid(); pm.set(String(p.id), id); return { ...p, id }; });
     const T = tasks.map(t => {
       const project_id = pm.get(String(t.project_id)) || fail(400, 'import failed: task references a missing project');
-      const id = uuid(); tm.set(String(t.id), id); return { ...t, id, project_id };
+      const id = uuid(); tm.set(String(t.id), id); return { ...t, id, project_id, parent_id: null };
     });
     const R = records.map(r => ({
       ...r, id: uuid(),
@@ -47,6 +64,7 @@
         data = { version: VERSION, ...reId(data.projects || [], data.tasks || [], data.records || []) };
         save();
       }
+      for (const t of data.tasks) if (!('parent_id' in t)) t.parent_id = null;  // saved before sub-tasks existed
       return data;
     }
     const save = () => storage.setItem(KEY, JSON.stringify(data));
@@ -67,7 +85,7 @@
       const need = (row, keys) => { for (const k of keys) if (row == null || !(k in row)) fail(400, `import failed: missing ${k}`); };
       const t = now();
       const projects = b.projects.map(p => { need(p, ['id', 'name']); return { id: p.id, name: p.name, color: p.color || '#4f8cff', archived: p.archived ? 1 : 0, created: p.created ?? t }; });
-      const tasks = b.tasks.map(x => { need(x, ['id', 'project_id', 'name']); return { id: x.id, project_id: x.project_id, name: x.name, completed: x.completed ? 1 : 0, created: x.created ?? t }; });
+      const tasks = b.tasks.map(x => { need(x, ['id', 'project_id', 'name']); return { id: x.id, project_id: x.project_id, parent_id: x.parent_id ?? null, name: x.name, completed: x.completed ? 1 : 0, created: x.created ?? t }; });
       const records = b.records.map(r => { need(r, ['id', 'project_id', 'start']); return { id: r.id, project_id: r.project_id, task_id: r.task_id ?? null, start: r.start, end: r.end ?? null, planned_end: r.planned_end ?? null }; });
       if (b.version === 1) return reId(projects, tasks, records);
       for (const row of [...projects, ...tasks, ...records]) if (typeof row.id !== 'string' || !row.id) fail(400, 'import failed: version 2 ids must be strings');
@@ -85,6 +103,7 @@
     function settle(d) {
       const pids = new Set(d.projects.map(p => p.id)), tids = new Set(d.tasks.map(t => t.id));
       for (const t of d.tasks) if (!pids.has(t.project_id)) fail(400, 'import failed: task references a missing project');
+      for (const t of d.tasks) taskDepth(d.tasks, t);  // parent exists, same project, at most three levels, no cycle
       for (const r of d.records) {
         if (!pids.has(r.project_id)) fail(400, 'import failed: record references a missing project');
         if (r.task_id != null && !tids.has(r.task_id)) fail(400, 'import failed: record references a missing task');
@@ -118,10 +137,11 @@
       },
 
       'POST api/tasks': b => {
-        const name = (b.name || '').trim(), pid = asId(b.project_id);
+        const name = (b.name || '').trim(), pid = asId(b.project_id), parent_id = asId(b.parent_id);
         if (!name || pid == null) fail(400, 'name and project_id required');
         checkProjectTask(pid);
-        const t = { id: uuid(), project_id: pid, name, completed: 0, created: now() };
+        const t = { id: uuid(), project_id: pid, parent_id, name, completed: 0, created: now() };
+        taskDepth(data.tasks, t);
         data.tasks.push(t); return t;
       },
       'PUT api/tasks/:id': (b, id) => {
@@ -131,8 +151,9 @@
         return t;
       },
       'DELETE api/tasks/:id': (_b, id) => {
-        data.tasks = data.tasks.filter(t => t.id !== id);
-        for (const r of data.records) if (r.task_id === id) r.task_id = null;
+        const gone = subtree(data.tasks, id);
+        data.tasks = data.tasks.filter(t => !gone.has(t.id));
+        for (const r of data.records) if (gone.has(r.task_id)) r.task_id = null;
         return { ok: true };
       },
 

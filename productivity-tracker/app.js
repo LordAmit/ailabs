@@ -29,8 +29,8 @@ const PALETTE = ['#5b8cff', '#ff5b7f', '#ffb545', '#2ecc8f', '#a66bff', '#ff7a45
 const THEMES = [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']];
 const ACCENTS = [['teal', 'Teal', '#14b8a6'], ['blue', 'Blue', '#2d81ff'], ['purple', 'Purple', '#7c5cff']];
 // mode and minutes: how the play buttons start (stopwatch, or a countdown of `minutes`).
-// tick: ticking sound wanted while something runs.
-const DEFAULT_PREFS = { theme: 'system', accent: 'blue', mode: 'stopwatch', minutes: 25, tick: false };
+// tick: ticking sound wanted while something runs. tourSeen: the guided tour was finished or skipped.
+const DEFAULT_PREFS = { theme: 'system', accent: 'blue', mode: 'stopwatch', minutes: 25, tick: false, tourSeen: false };
 function loadPrefs() {
   try { return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem('prefs') || '{}') }; } catch { return { ...DEFAULT_PREFS }; }
 }
@@ -103,6 +103,15 @@ function segments(r) {
 
 const proj = id => S.projects.find(p => p.id === id);
 const task = id => S.tasks.find(t => t.id === id);
+// Tasks of a project in tree order, children right after their parent: [{ t, depth }], depth 1 for a top-level task.
+function taskTree(pid) {
+  const all = S.tasks.filter(t => t.project_id === pid), out = [];
+  const walk = (parent, depth) => { for (const t of all) if ((t.parent_id ?? null) === parent) { out.push({ t, depth }); walk(t.id, depth + 1); } };
+  walk(null, 1);
+  return out;
+}
+const descendants = id => S.tasks.filter(t => t.parent_id === id).flatMap(c => [c, ...descendants(c.id)]);
+const MAX_TASK_DEPTH = 3;
 const dur = r => (r.end ?? now()) - r.start;
 
 // ---------- data ----------
@@ -122,6 +131,30 @@ async function startTimer(project_id, task_id = null) {
 async function stopTimer() { await api('POST', 'api/timer/stop'); await refresh(); }
 
 async function refresh() { await loadState(); render(); }
+const FAR_FUTURE = 4102444800;  // 2100-01-01, for "every record" queries
+const allRecords = () => fetchRecords(0, FAR_FUTURE);
+
+// ---------- undo after delete ----------
+// A delete happens at once. The removed rows are kept for UNDO_SECONDS and Undo merges them back
+// with api/import?mode=merge, which restores rows by id, records included. A new delete replaces
+// the previous offer.
+const UNDO_SECONDS = 8;
+let undoRows = null, undoTimer = 0;
+function offerUndo(what, rows) {
+  undoRows = { version: 2, projects: [], tasks: [], records: [], ...rows };
+  $('#undoText').textContent = `Deleted ${what}.`;
+  $('#undo').hidden = false;
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(dismissUndo, UNDO_SECONDS * 1000);
+}
+function dismissUndo() { clearTimeout(undoTimer); undoRows = null; $('#undo').hidden = true; }
+async function undoDelete() {
+  const rows = undoRows;
+  dismissUndo();
+  if (!rows) return;
+  await api('POST', 'api/import?mode=merge', rows);
+  refresh();
+}
 
 // ---------- rendering ----------
 const view = $('#view'), title = $('#title');
@@ -133,7 +166,9 @@ function render() {
   $('#backBtn').hidden = !(S.view === 'projects' && S.projectId);
   renderRunbar();
   const fns = { timeline: renderTimeline, projects: renderProjects, reports: renderReports, calendar: renderCalendar };
-  fns[S.view]();
+  const done = fns[S.view]();
+  done.then(() => { if (tourStep >= 0) showTourStep(tourStep); });  // a re-render mid-tour rebuilds the demo elements
+  return done;
 }
 
 function renderRunbar() {
@@ -282,18 +317,13 @@ async function renderProjects() {
   for (const r of recs) for (const s of segments(r)) if (s.key === dayKey(new Date())) today[r.project_id] = (today[r.project_id] || 0) + (s.end - s.start);
   const active = S.projects.filter(p => !p.archived), archived = S.projects.filter(p => p.archived);
   if (!S.projects.length) {
-    view.innerHTML = `<div class="empty">No projects yet.<br><button class="add-card" id="addProj">+ New project</button></div>`;
+    view.innerHTML = `<div class="empty">No projects yet.<br><button class="add-card" id="addProj">+ New project</button>
+      ${PREFS.tourSeen ? '' : '<br><button class="linkbtn" id="tourBtn">Take the tour</button>'}</div>`;
     $('#addProj').onclick = () => openProjectDialog(null);
+    if ($('#tourBtn')) $('#tourBtn').onclick = startTour;
     return;
   }
-  const card = p => {
-    const on = S.running && S.running.project_id === p.id;
-    const open = S.tasks.filter(t => t.project_id === p.id && !t.completed).length;
-    return `<div class="proj" data-id="${p.id}" style="border-left-color:${p.color}">
-      <div class="body"><div class="name">${esc(p.name)}</div>
-        <div class="sub">${fmtDur(today[p.id] || 0)} today${open ? ` · ${open} open task${open > 1 ? 's' : ''}` : ''}</div></div>
-      <button class="play ${on ? 'on' : ''}" data-play="${p.id}" title="${on ? 'Stop' : 'Start'}">${playIcon(on)}</button></div>`;
-  };
+  const card = p => projectCardHtml(p, today[p.id] || 0);
   view.innerHTML = modeRowHtml() + `<button class="add-card" id="addProj">+ New project</button>` +
     active.map(card).join('') +
     (archived.length ? `<div class="section-title">Archived</div>` + archived.map(card).join('') : '');
@@ -301,6 +331,15 @@ async function renderProjects() {
   $('#addProj').onclick = () => openProjectDialog(null);
   $$('.proj', view).forEach(el => el.onclick = () => { S.projectId = el.dataset.id; render(); });
   $$('[data-play]', view).forEach(b => b.onclick = e => { e.stopPropagation(); togglePlay(b.dataset.play, null); });
+}
+// One row of the project list. todaySecs: time tracked on it today.
+function projectCardHtml(p, todaySecs) {
+  const on = S.running && S.running.project_id === p.id;
+  const open = S.tasks.filter(t => t.project_id === p.id && !t.completed).length;
+  return `<div class="proj" data-id="${p.id}" style="border-left-color:${p.color}">
+    <div class="body"><div class="name">${esc(p.name)}</div>
+      <div class="sub">${fmtDur(todaySecs)} today${open ? ` · ${open} open task${open > 1 ? 's' : ''}` : ''}</div></div>
+    <button class="play ${on ? 'on' : ''}" data-play="${p.id}" title="${on ? 'Stop' : 'Start'}">${playIcon(on)}</button></div>`;
 }
 function togglePlay(pid, tid) {
   const r = S.running;
@@ -315,13 +354,19 @@ async function renderProjectDetail() {
   const recs = (await fetchRecords(0, now() + 1)).filter(r => r.project_id === p.id);
   const total = recs.reduce((a, r) => a + dur(r), 0);
   const week = recs.reduce((a, r) => a + segments(r).filter(s => s.start >= weekFrom).reduce((x, s) => x + (s.end - s.start), 0), 0);
-  const tasks = S.tasks.filter(t => t.project_id === p.id);
+  const tasks = taskTree(p.id);
+  // Time per task, all time, with sub-task time rolled into the parent. Reverse tree order visits children before parents.
+  const taskTime = {};
+  for (const r of recs) if (r.task_id) taskTime[r.task_id] = (taskTime[r.task_id] || 0) + dur(r);
+  for (const { t } of [...tasks].reverse()) if (t.parent_id) taskTime[t.parent_id] = (taskTime[t.parent_id] || 0) + (taskTime[t.id] || 0);
   const on = S.running && S.running.project_id === p.id && S.running.task_id == null;
-  const taskHtml = t => {
+  const taskHtml = ({ t, depth }) => {
     const tOn = S.running && S.running.task_id === t.id;
-    return `<div class="task ${t.completed ? 'done' : ''}" data-id="${t.id}">
+    return `<div class="task d${depth} ${t.completed ? 'done' : ''}" data-id="${t.id}">
       <input type="checkbox" ${t.completed ? 'checked' : ''} data-done="${t.id}">
       <span class="tname" data-edit="${t.id}">${esc(t.name)}</span>
+      ${taskTime[t.id] ? `<span class="ttime">${fmtDur(taskTime[t.id])}</span>` : ''}
+      ${depth < MAX_TASK_DEPTH ? `<button class="linkbtn sub" data-sub="${t.id}" title="Add a sub-task">+ Sub</button>` : ''}
       <button class="play sm ${tOn ? 'on' : ''}" data-play="${t.id}" style="${tOn ? '' : 'background:' + p.color}" title="${tOn ? 'Stop' : 'Start'}">${playIcon(tOn)}</button></div>`;
   };
   view.innerHTML = modeRowHtml() + `
@@ -337,15 +382,20 @@ async function renderProjectDetail() {
     <div class="section-title">Tasks <button class="linkbtn right" id="addTask">+ Add task</button></div>
     ${tasks.length ? tasks.map(taskHtml).join('') : '<div class="muted" style="padding:8px 4px">No tasks. Tasks are optional.</div>'}
     <div class="section-title">Recent</div>
-    ${recs.slice(0, 20).map(recHtml).join('') || '<div class="muted" style="padding:8px 4px">No records yet.</div>'}`;
+    ${recs.slice(0, 20).map(r => recHtml(r)).join('') || '<div class="muted" style="padding:8px 4px">No records yet.</div>'}`;
   bindModeRow();
   $('#projPlay').onclick = () => togglePlay(p.id, null);
   $('#editProj').onclick = () => openProjectDialog(p);
   $('#archProj').onclick = async () => { await api('PUT', `api/projects/${p.id}`, { archived: !p.archived }); refresh(); };
-  $('#delProj').onclick = async () => { if (confirm(`Delete "${p.name}" and all its records?`)) { await api('DELETE', `api/projects/${p.id}`); S.projectId = null; refresh(); } };
+  $('#delProj').onclick = async () => {
+    const rows = { projects: [p], tasks: S.tasks.filter(t => t.project_id === p.id), records: (await allRecords()).filter(r => r.project_id === p.id) };
+    await api('DELETE', `api/projects/${p.id}`); S.projectId = null; await refresh();
+    offerUndo(`"${p.name}" with ${rows.records.length} record${rows.records.length === 1 ? '' : 's'}`, rows);
+  };
   $('#addTask').onclick = () => openTaskDialog(null, p.id);
   $$('[data-done]', view).forEach(c => c.onchange = async () => { await api('PUT', `api/tasks/${c.dataset.done}`, { completed: c.checked }); refresh(); });
   $$('[data-edit]', view).forEach(el => el.onclick = () => openTaskDialog(task(el.dataset.edit), p.id));
+  $$('[data-sub]', view).forEach(b => b.onclick = () => openTaskDialog(null, p.id, b.dataset.sub));
   $$('[data-play]', view).forEach(b => b.onclick = () => togglePlay(p.id, b.dataset.play));
   $$('.rec', view).forEach(el => el.onclick = () => openRecordDialog(recs.find(r => r.id === el.dataset.id)));
 }
@@ -490,14 +540,15 @@ async function renderCalendar() {
 const dlg = $('#dlg');
 function openDialog(html, onSubmit) {
   dlg.innerHTML = `<form method="dialog">${html}</form>`;
+  delete dlg.dataset.kind;
   const form = $('form', dlg);
-  // Cancel and Delete are submit buttons too; without this the browser blocks them on an empty required field.
-  $$('button[value="cancel"], button[value="delete"]', form).forEach(b => b.setAttribute('formnovalidate', ''));
-  form.onsubmit = async e => {
-    if (e.submitter?.value === 'cancel') return;
-    e.preventDefault();
-    if (await onSubmit(new FormData(form), e.submitter?.value) !== false) dlg.close();
-  };
+  const submit = async action => { if (await onSubmit(new FormData(form), action) !== false) dlg.close(); };
+  // Enter in a field submits the form through its first submit button, and Cancel and Delete come
+  // before Save. So they are plain buttons: Enter reaches Save, and the browser does not block
+  // Cancel on an empty required field.
+  $$('button[value="cancel"]', form).forEach(b => { b.type = 'button'; b.onclick = () => dlg.close(); });
+  $$('button[value="delete"]', form).forEach(b => { b.type = 'button'; b.onclick = () => submit('delete'); });
+  form.onsubmit = e => { e.preventDefault(); submit(e.submitter?.value); };
   dlg.showModal();
 }
 const colorPicker = sel => `<div class="field"><label>Color</label><div class="colors">${PALETTE.map(c => `<label style="background:${c}"><input type="radio" name="color" value="${c}" ${c === sel ? 'checked' : ''}><span></span></label>`).join('')}</div></div>`;
@@ -514,15 +565,43 @@ function openProjectDialog(p) {
       refresh();
     });
 }
-function openTaskDialog(t, pid) {
-  openDialog(`<h2>${t ? 'Edit task' : 'New task'}</h2>
-    <div class="field"><label>Name</label><input name="name" required autofocus value="${esc(t?.name || '')}"></div>
+// Pasted text with line breaks becomes one task per non-empty line. A leading list marker
+// ("- ", "* ", "1. ", "1)", "[ ] ") is dropped. Returns [] for single-line text.
+const TASK_LINE_MARKER = /^\s*(?:(?:[-*+\u2022]|\d+[.)])\s+)?(?:\[[ xX]\]\s+)?/;
+function splitTaskLines(text) {
+  const lines = text.split(/\r?\n/).map(l => l.replace(TASK_LINE_MARKER, '').trim()).filter(Boolean);
+  return lines.length > 1 ? lines : [];
+}
+const CONFIRM_TASKS_ABOVE = 5;
+// t: task to edit, or null to add. parentId: parent of a new sub-task; the parent cannot be changed later.
+function openTaskDialog(t, pid, parentId = null) {
+  const parent = parentId ? task(parentId) : null;
+  openDialog(`<h2>${t ? 'Edit task' : parent ? 'New sub-task' : 'New task'}</h2>
+    ${parent ? `<p class="muted" style="margin:-10px 0 14px">Under ${esc(parent.name)}</p>` : ''}
+    <div class="field"><label>Name</label><input name="name" required autofocus value="${esc(t?.name || '')}">
+      ${t ? '' : '<div class="muted" style="font-size:12px;margin-top:4px">Paste several lines to add one task per line.</div>'}</div>
     <div class="actions">${t ? '<button class="btn danger" value="delete">Delete</button>' : ''}<button class="btn" value="cancel">Cancel</button><button class="btn primary" value="ok">Save</button></div>`,
     async (fd, action) => {
-      if (action === 'delete') { await api('DELETE', `api/tasks/${t.id}`); return refresh(); }
-      if (t) await api('PUT', `api/tasks/${t.id}`, { name: fd.get('name') }); else await api('POST', 'api/tasks', { name: fd.get('name'), project_id: pid });
+      if (action === 'delete') {
+        const tasks = [t, ...descendants(t.id)], ids = new Set(tasks.map(x => x.id));
+        const rows = { tasks, records: (await allRecords()).filter(r => ids.has(r.task_id)) };
+        await api('DELETE', `api/tasks/${t.id}`); await refresh();
+        const n = tasks.length - 1;
+        return offerUndo(`"${t.name}"${n ? ` and ${n} sub-task${n > 1 ? 's' : ''}` : ''}`, rows);
+      }
+      if (t) await api('PUT', `api/tasks/${t.id}`, { name: fd.get('name') }); else await api('POST', 'api/tasks', { name: fd.get('name'), project_id: pid, parent_id: parentId });
       refresh();
     });
+  if (t) return;
+  $('input[name=name]', dlg).onpaste = async e => {
+    const names = splitTaskLines(e.clipboardData?.getData('text') || '');
+    if (!names.length) return;  // one line: the normal paste
+    e.preventDefault();
+    if (names.length > CONFIRM_TASKS_ABOVE && !confirm(`Create ${names.length} tasks?`)) return;
+    for (const name of names) await api('POST', 'api/tasks', { name, project_id: pid, parent_id: parentId });
+    dlg.close();
+    refresh();
+  };
 }
 // r: record to edit, or null to add. defaults: optional {start, end} for a new record.
 function openRecordDialog(r, defaults) {
@@ -538,7 +617,7 @@ function openRecordDialog(r, defaults) {
     <div class="field"><label>End</label><input type="datetime-local" name="end" ${r && r.end == null ? '' : 'required'} value="${toLocalInput(end)}">${r && r.end == null ? '<div class="muted" style="font-size:12px;margin-top:4px">Running — leave end as is or stop the timer.</div>' : ''}</div>
     <div class="actions">${isNew ? '' : '<button class="btn danger" value="delete">Delete</button>'}<button class="btn" value="cancel">Cancel</button><button class="btn primary" value="ok">Save</button></div>`,
     async (fd, action) => {
-      if (action === 'delete') { await api('DELETE', `api/records/${r.id}`); return refresh(); }
+      if (action === 'delete') { await api('DELETE', `api/records/${r.id}`); await refresh(); return offerUndo(`a ${fmtDur(dur(r))} record`, { records: [r] }); }
       const data = { project_id: fd.get('project_id'), task_id: fd.get('task_id') || null, start: fromLocalInput(fd.get('start')) };
       if (isNew || r.end != null) data.end = fromLocalInput(fd.get('end'));
       if (data.end != null && data.end <= data.start) { alert('End must be after start.'); return false; }
@@ -547,32 +626,42 @@ function openRecordDialog(r, defaults) {
     });
   const fillTasks = () => {
     const p = $('#recProj').value;
-    $('#recTask').innerHTML = `<option value="">No task</option>` + S.tasks.filter(t => t.project_id === p).map(t => `<option value="${t.id}" ${t.id === r?.task_id ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
+    $('#recTask').innerHTML = `<option value="">No task</option>` + taskTree(p).map(({ t, depth }) => `<option value="${t.id}" ${t.id === r?.task_id ? 'selected' : ''}>${'\u00a0\u00a0\u00a0'.repeat(depth - 1)}${esc(t.name)}</option>`).join('');
   };
   $('#recProj').onchange = fillTasks; fillTasks();
 }
+// Preference chips, used by the menu and the tour. type="button" so they do not submit the dialog form.
+const prefChip = (key, val, label, on) => `<button type="button" class="chip ${on ? 'active' : ''}" data-pref="${key}" data-val="${val}">${label}</button>`;
+const themeChips = () => THEMES.map(([v, l]) => prefChip('theme', v, l, PREFS.theme === v)).join('');
+const accentChips = () => ACCENTS.map(([v, l, c]) => prefChip('accent', v, `<i class="dot" style="background:${c}"></i>${l}`, PREFS.accent === v)).join('');
+function bindPrefChips(root) {
+  $$('[data-pref]', root).forEach(b => b.onclick = () => {
+    setPref(b.dataset.pref, b.dataset.val);
+    $$(`[data-pref="${b.dataset.pref}"]`, root).forEach(x => x.classList.toggle('active', x === b));
+  });
+}
 function openMenu() {
-  // type="button" so the chips do not submit the dialog form
-  const chip = (key, val, label, on) => `<button type="button" class="chip ${on ? 'active' : ''}" data-pref="${key}" data-val="${val}">${label}</button>`;
   openDialog(`<h2>Menu</h2>
-    <div class="field"><label>Theme</label><div class="chip-row">${THEMES.map(([v, l]) => chip('theme', v, l, PREFS.theme === v)).join('')}</div></div>
-    <div class="field"><label>Accent</label><div class="chip-row">${ACCENTS.map(([v, l, c]) => chip('accent', v, `<i class="dot" style="background:${c}"></i>${l}`, PREFS.accent === v)).join('')}</div></div>
+    <div class="field"><label>Theme</label><div class="chip-row">${themeChips()}</div></div>
+    <div class="field"><label>Accent</label><div class="chip-row">${accentChips()}</div></div>
     <div class="field"><label>Data</label><div class="menu">
       <button value="export">Export backup (JSON)</button>
       <button value="import">Import backup (merge or replace)</button>
       <button value="newproj">New project</button>
       <button value="newrec">Add record manually</button></div></div>
+    <div class="field"><label>Help</label><div class="menu">
+      <button value="tour">Guided tour</button>
+      <button value="keys">Keyboard shortcuts</button></div></div>
     <div class="actions"><button class="btn" value="cancel">Close</button></div>`,
     async (_fd, action) => {
       if (action === 'export') exportBackup();
       if (action === 'import') $('#importFile').click();
       if (action === 'newproj') setTimeout(() => openProjectDialog(null), 50);
       if (action === 'newrec') setTimeout(() => openRecordDialog(null), 50);
+      if (action === 'tour') setTimeout(startTour, 50);
+      if (action === 'keys') setTimeout(openShortcuts, 50);
     });
-  $$('[data-pref]', dlg).forEach(b => b.onclick = () => {
-    setPref(b.dataset.pref, b.dataset.val);
-    $$(`[data-pref="${b.dataset.pref}"]`, dlg).forEach(x => x.classList.toggle('active', x === b));
-  });
+  bindPrefChips(dlg);
 }
 // Import: Merge keeps what is here and adds or updates rows by id; Replace discards everything first.
 // Version 1 backups (archived server, older copies) get new ids on import, so merging the same
@@ -618,11 +707,159 @@ function syncTick() {
 }
 function toggleTick() { setPref('tick', !PREFS.tick); syncTick(); }
 
+// ---------- guided tour ----------
+// Cards over the live Projects view, each pointing at one control. Nothing is written to the store:
+// with no project or nothing running, the tour puts a demo card or a demo running bar in the DOM
+// only, and the next render() removes them. Started from the menu, or from the empty Projects view
+// until it has been finished or skipped once (PREFS.tourSeen). It never starts by itself.
+const TOUR = [
+  { title: 'Welcome', text: 'This tour has seven cards and does not change your data. Use the buttons or the arrow keys to move, and Esc to leave.' },
+  { target: '.mode-row', title: 'Stopwatch or countdown', text: 'This row sets how the play buttons start. A stopwatch runs until you stop it. Countdown opens a drawer with 15, 25, 45, 60 or any number of minutes, and the timer ends by itself at the planned time, even if the page is closed.' },
+  { target: '.proj .play', title: 'Start a timer', text: 'The play button starts a timer on the project. Starting another timer stops this one. Tap the card to open the project, where each task has its own play button and the records are listed.' },
+  { target: '#runbar', title: 'The running bar', text: 'This bar stays at the bottom of every view while a timer runs and shows a live clock. The square button stops the timer.', demoRun: true },
+  { target: '.tabs', title: 'Four views', text: 'Projects lists your projects. Reports shows totals and charts for a period. Timeline lists records by day, and tapping a record opens it for editing. Calendar shows a month with a total for each day.' },
+  { target: '#menuBtn', title: 'Backup', text: 'The menu has Export, which writes everything to a JSON file, and Import, which merges a file into the current data or replaces it. To use two devices, export on one and merge on the other.' },
+  { target: '#menuBtn', title: 'Theme', text: 'The theme and the accent color are in the same menu. You can also change them here.', chips: true },
+];
+let tourStep = -1;  // index into TOUR while the tour is open, otherwise -1
+const tourEl = $('#tour');
+async function startTour() {
+  if (dlg.open) dlg.close();
+  S.view = 'projects'; S.projectId = null;
+  await render();
+  tourStage();
+  $('.app').inert = true;
+  tourEl.hidden = false;
+  showTourStep(0);
+  $('#tourNext').focus();
+}
+function endTour() {
+  tourStep = -1;
+  tourEl.hidden = true;
+  $('.app').inert = false;
+  $('#runbar').classList.remove('tour-demo');
+  setPref('tourSeen', true);
+  render();
+  $('#menuBtn').focus();
+}
+// With no project there is no mode row and no play button to point at: show both with a demo card.
+function tourStage() {
+  if ($('.proj .play', view)) return;
+  view.innerHTML = modeRowHtml() + `<button class="add-card">+ New project</button>` +
+    projectCardHtml({ id: 'demo', name: 'Example project', color: PALETTE[0] }, 0).replace('class="proj"', 'class="proj tour-demo"');
+}
+function showTourStep(i) {
+  tourStep = i;
+  const st = TOUR[i], bar = $('#runbar');
+  tourStage();
+  if (st.demoRun && !S.running) {
+    bar.hidden = false; bar.classList.add('tour-demo');
+    $('#runDot').style.background = PALETTE[0]; $('#runProject').textContent = 'Example project';
+    $('#runTask').textContent = 'No task'; $('#runKind').hidden = true; $('#runTime').textContent = '12:34';
+  } else if (bar.classList.contains('tour-demo')) { bar.classList.remove('tour-demo'); renderRunbar(); }
+  $('#tourStep').textContent = `${i + 1} of ${TOUR.length}`;
+  $('#tourTitle').textContent = st.title;
+  $('#tourText').textContent = st.text;
+  $('#tourExtra').innerHTML = st.chips ? `<div class="chip-row">${themeChips()}</div><div class="chip-row">${accentChips()}</div>` : '';
+  bindPrefChips($('#tourExtra'));
+  $('#tourBack').disabled = i === 0;
+  $('#tourNext').textContent = i === TOUR.length - 1 ? 'Done' : 'Next';
+  const t = tourTarget();
+  if (t) t.scrollIntoView({ block: 'center' });
+  placeTour(t);
+}
+const tourTarget = () => TOUR[tourStep].target ? $(TOUR[tourStep].target) : null;
+// Cut a hole around the target and put the card under it, or above it when there is no room below.
+function placeTour(t) {
+  const hole = $('.tour-hole', tourEl), card = $('.tour-card', tourEl), pad = 6, gap = 12;
+  hole.hidden = !t;
+  tourEl.classList.toggle('dim', !t);
+  const cw = card.offsetWidth, ch = card.offsetHeight;
+  let top, left;
+  if (t) {
+    const r = t.getBoundingClientRect();
+    Object.assign(hole.style, { top: `${r.top - pad}px`, left: `${r.left - pad}px`, width: `${r.width + 2 * pad}px`, height: `${r.height + 2 * pad}px` });
+    top = r.bottom + pad + gap + ch <= innerHeight - gap ? r.bottom + pad + gap : Math.max(gap, r.top - pad - gap - ch);
+    left = Math.min(Math.max(gap, r.left + r.width / 2 - cw / 2), innerWidth - cw - gap);
+  } else {
+    top = Math.max(gap, (innerHeight - ch) / 2); left = Math.max(gap, (innerWidth - cw) / 2);
+  }
+  Object.assign(card.style, { top: `${top}px`, left: `${left}px` });
+}
+function tourNav(d) {
+  const i = tourStep + d;
+  if (i >= TOUR.length) endTour(); else if (i >= 0) showTourStep(i);
+}
+$('#tourNext').onclick = () => tourNav(1);
+$('#tourBack').onclick = () => tourNav(-1);
+$('#tourSkip').onclick = endTour;
+document.addEventListener('keydown', e => {
+  if (tourStep < 0) return;
+  if (e.key === 'Escape') endTour();
+  else if (e.key === 'ArrowRight') tourNav(1);
+  else if (e.key === 'ArrowLeft') tourNav(-1);
+});
+const replaceTour = () => { if (tourStep >= 0) placeTour(tourTarget()); };
+addEventListener('resize', replaceTour);
+addEventListener('scroll', replaceTour, { passive: true });
+
+// ---------- keyboard shortcuts ----------
+// Single keys with no modifier, ignored while typing in a field, while a dialog is open, and
+// during the tour. "?" opens the list; the same list is in the menu under Help.
+const SHORTCUTS = [
+  ['?', 'This list'],
+  ['1 2 3 4', 'Projects, Reports, Timeline, Calendar'],
+  ['N', 'New project'],
+  ['T', 'Add a task to the open project'],
+  ['R', 'Add a record'],
+  ['S', 'Stop the timer. If none runs, start one on the open project, or else on the last tracked project'],
+  ['M', 'Switch between stopwatch and countdown'],
+  ['\u2190 \u2192', 'Previous and next month in Calendar'],
+  [',', 'Menu'],
+  ['Esc', 'Close a dialog, or back to the project list'],
+];
+function openShortcuts() {
+  openDialog(`<h2>Keyboard shortcuts</h2>
+    <div class="keys">${SHORTCUTS.map(([k, what]) => `<kbd>${esc(k)}</kbd><span>${esc(what)}</span>`).join('')}</div>
+    <div class="actions"><button class="btn" value="cancel">Close</button></div>`, async () => {});
+  dlg.dataset.kind = 'keys';
+}
+// S: stop what runs; otherwise start the open project, or the project of the most recent record.
+async function toggleTimerKey() {
+  if (S.running) return stopTimer();
+  let pid = S.view === 'projects' ? S.projectId : null;
+  if (!pid) { const recs = await fetchRecords(0, now() + 1); pid = recs.sort((a, b) => b.start - a.start)[0]?.project_id ?? null; }
+  if (pid && proj(pid)) return startTimer(pid);
+}
+document.addEventListener('keydown', e => {
+  if (tourStep >= 0 || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) || e.target.isContentEditable) return;
+  if (dlg.open) { if (e.key === '?' && dlg.dataset.kind === 'keys') { e.preventDefault(); dlg.close(); } return; }
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  const views = { 1: 'projects', 2: 'reports', 3: 'timeline', 4: 'calendar' };
+  const actions = {
+    '?': openShortcuts, ',': openMenu,
+    n: () => openProjectDialog(null),
+    t: () => { if (S.view === 'projects' && S.projectId) openTaskDialog(null, S.projectId); },
+    r: () => openRecordDialog(null),
+    s: toggleTimerKey,
+    m: () => { const m = PREFS.mode === 'countdown' ? 'stopwatch' : 'countdown'; const b = $(`[data-start-mode="${m}"]`, view); if (b) b.click(); else setPref('mode', m); },
+    ArrowLeft: () => { if (S.view === 'calendar') $('#prevM').click(); },
+    ArrowRight: () => { if (S.view === 'calendar') $('#nextM').click(); },
+    Escape: () => { if (S.view === 'projects' && S.projectId) { S.projectId = null; render(); } },
+  };
+  const fn = views[k] ? () => setView(views[k]) : actions[k];
+  if (!fn) return;
+  e.preventDefault();
+  fn();
+});
+
 // ---------- wiring ----------
 $('#tickBtn').onclick = toggleTick;
 $$('.tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
 $('#backBtn').onclick = () => { S.projectId = null; render(); };
 $('#stopBtn').onclick = stopTimer;
+$('#undoBtn').onclick = undoDelete;
 $('#menuBtn').onclick = openMenu;
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 

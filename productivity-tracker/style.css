@@ -137,6 +137,11 @@ main { flex: 1; padding: 8px 16px 110px; }
 .play .ico { width: 18px; height: 18px; }
 .play.sm .ico, .stop-btn .ico { width: 15px; height: 15px; }
 .task { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); margin-bottom: 6px; }
+.task.d2 { margin-left: 22px; }
+.task.d3 { margin-left: 44px; }
+.task .ttime { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.task .linkbtn.sub { color: var(--muted); font-size: 10px; }
+.task .linkbtn.sub:hover { color: var(--accent-ink); }
 .task.done .tname { text-decoration: line-through; color: var(--muted); }
 .task .tname { flex: 1; cursor: pointer; }
 .task input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
@@ -188,6 +193,29 @@ main { flex: 1; padding: 8px 16px 110px; }
 .runbar > .ico { color: var(--muted); width: 18px; height: 18px; }
 .stop-btn { width: 40px; height: 40px; background: var(--invert-bg); color: var(--invert-fg); display: grid; place-items: center; }
 
+/* --- undo bar: shown for a few seconds after a delete, above the running bar when that is visible --- */
+.undo { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 536px; z-index: 7;
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--invert-bg); color: var(--invert-fg); }
+.undo span { flex: 1; }
+.undo button { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 6px 10px; border: 1px solid currentColor; }
+.undo button:hover { background: rgba(128, 128, 128, .25); }
+#runbar:not([hidden]) + .undo { bottom: 90px; }
+
+/* --- guided tour --- */
+.tour { position: fixed; inset: 0; z-index: 20; }
+.tour.dim { background: rgba(0, 0, 0, .6); }
+.tour-hole { position: absolute; pointer-events: none; outline: 2px solid var(--accent); outline-offset: 2px;
+  box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .6); transition: top .2s ease, left .2s ease, width .2s ease, height .2s ease; }
+.tour-card { position: absolute; width: min(92vw, 360px); padding: 18px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border-strong); box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+.tour-card .label { color: var(--muted); }
+.tour-card h2 { margin: 6px 0 8px; font-family: var(--font-display); font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
+.tour-card p { margin: 0; color: var(--muted); }
+.tour-card .chip-row { margin: 12px 0 0; }
+.tour-card .actions { margin-top: 16px; }
+.tour-card #tourSkip { margin-right: auto; }
+.tour-card button:disabled { opacity: .4; cursor: default; }
+
 /* --- dialog --- */
 dialog { background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); padding: 22px; width: min(92vw, 440px); }
 dialog::backdrop { background: rgba(0, 0, 0, .6); }
@@ -206,5 +234,8 @@ dialog h2 { margin: 0 0 18px; font-family: var(--font-display); font-size: 20px;
 .btn.primary { background: var(--invert-bg); color: var(--invert-fg); border-color: var(--invert-bg); }
 .btn.primary:hover { opacity: .9; background: var(--invert-bg); }
 .btn.danger { border-color: transparent; color: var(--danger); margin-right: auto; }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; align-items: baseline; }
+.keys kbd { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; white-space: nowrap; border: 1px solid var(--border-strong); padding: 2px 6px; }
+.keys span { color: var(--muted); font-size: 13px; }
 .menu button { display: block; width: 100%; text-align: left; padding: 12px; border: 1px solid var(--border); margin-bottom: -1px; }
 .menu button:hover { background: var(--surface2); }

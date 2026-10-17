@@ -229,3 +229,86 @@ test('data persists through storage', () => {
   createStore(storage).request('POST', 'api/projects', { name: 'kept' });
   assert.equal(createStore(storage).request('GET', 'api/state').projects[0].name, 'kept');
 });
+
+// --- sub-tasks: parent_id, at most three levels, subtree delete, import checks ---
+const tree = s => {
+  const p = s.request('POST', 'api/projects', { name: 'P' });
+  const a = s.request('POST', 'api/tasks', { name: 'a', project_id: p.id });
+  const b = s.request('POST', 'api/tasks', { name: 'b', project_id: p.id, parent_id: a.id });
+  const c = s.request('POST', 'api/tasks', { name: 'c', project_id: p.id, parent_id: b.id });
+  return { p, a, b, c };
+};
+
+test('task with a parent in the same project, parent_id null by default', () => {
+  const s = fresh();
+  const { a, b } = tree(s);
+  assert.equal(a.parent_id, null); assert.equal(b.parent_id, a.id);
+  assert.equal(s.request('GET', 'api/state').tasks.find(t => t.id === b.id).parent_id, a.id);
+});
+
+test('a fourth level is rejected', () => {
+  const s = fresh();
+  const { p, c } = tree(s);
+  expectStatus(() => s.request('POST', 'api/tasks', { name: 'd', project_id: p.id, parent_id: c.id }), 400);
+});
+
+test('parent must exist and belong to the same project', () => {
+  const s = fresh();
+  const { a } = tree(s);
+  const q = s.request('POST', 'api/projects', { name: 'Q' });
+  expectStatus(() => s.request('POST', 'api/tasks', { name: 'x', project_id: q.id, parent_id: a.id }), 400);
+  expectStatus(() => s.request('POST', 'api/tasks', { name: 'x', project_id: q.id, parent_id: 'nope' }), 400);
+});
+
+test('deleting a task deletes its subtree and unlinks their records', () => {
+  const s = fresh();
+  const { p, a, b, c } = tree(s);
+  const keep = s.request('POST', 'api/tasks', { name: 'keep', project_id: p.id });
+  s.request('POST', 'api/records', { project_id: p.id, task_id: c.id, start: 100, end: 200 });
+  s.request('DELETE', `api/tasks/${a.id}`);
+  assert.deepEqual(s.request('GET', 'api/state').tasks.map(t => t.id), [keep.id]);
+  assert.equal(s.request('GET', 'api/records')[0].task_id, null);
+  assert.ok(![a, b, c].some(t => s.request('GET', 'api/state').tasks.find(x => x.id === t.id)));
+});
+
+test('export carries parent_id and a backup without it imports as top-level tasks', () => {
+  const s = fresh();
+  const { b } = tree(s);
+  const dump = s.request('GET', 'api/export');
+  assert.equal(dump.tasks.find(t => t.id === b.id).parent_id, b.parent_id);
+  const s2 = fresh();
+  s2.request('POST', 'api/import', dump);
+  assert.equal(s2.request('GET', 'api/state').tasks.find(t => t.id === b.id).parent_id, b.parent_id);
+  const old = { ...dump, tasks: dump.tasks.map(({ parent_id, ...t }) => t) };
+  const s3 = fresh();
+  s3.request('POST', 'api/import', old);
+  assert.ok(s3.request('GET', 'api/state').tasks.every(t => t.parent_id === null));
+});
+
+test('import rejects a parent that is missing, in another project, or too deep', () => {
+  const s = fresh();
+  const { p } = tree(s);
+  const good = s.request('GET', 'api/export');
+  const bad = (edit) => { const d = JSON.parse(JSON.stringify(good)); edit(d); expectStatus(() => fresh().request('POST', 'api/import', d), 400); };
+  bad(d => { d.tasks[1].parent_id = 'nope'; });
+  bad(d => { d.projects.push({ id: 'q', name: 'Q' }); d.tasks[1].project_id = 'q'; });
+  bad(d => { d.tasks.push({ id: 'd', project_id: p.id, name: 'd', parent_id: d.tasks[2].id }); });
+  bad(d => { d.tasks[0].parent_id = d.tasks[2].id; });  // cycle
+  assert.equal(fresh().request('POST', 'api/import', good).ok, true);
+});
+
+test('merging a snapshot taken before a delete restores the rows by id (undo)', () => {
+  const s = fresh();
+  const { p, a, b, c } = tree(s);
+  const r = s.request('POST', 'api/records', { project_id: p.id, task_id: c.id, start: 100, end: 200 });
+  const snapshot = { version: 2, projects: [], tasks: [a, b, c], records: [r] };
+  s.request('DELETE', `api/tasks/${a.id}`);
+  assert.equal(s.request('GET', 'api/state').tasks.length, 0);
+  s.request('POST', 'api/import?mode=merge', snapshot);
+  assert.deepEqual(s.request('GET', 'api/state').tasks.map(t => t.id).sort(), [a.id, b.id, c.id].sort());
+  assert.equal(s.request('GET', 'api/records')[0].task_id, c.id);
+  s.request('DELETE', `api/projects/${p.id}`);
+  s.request('POST', 'api/import?mode=merge', { version: 2, projects: [p], tasks: [a, b, c], records: [r] });
+  assert.equal(s.request('GET', 'api/state').projects[0].id, p.id);
+  assert.equal(s.request('GET', 'api/records').length, 1);
+});
