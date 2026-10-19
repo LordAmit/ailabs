@@ -862,6 +862,8 @@ $('#stopBtn').onclick = stopTimer;
 $('#undoBtn').onclick = undoDelete;
 $('#menuBtn').onclick = openMenu;
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+// Another tab of the app wrote to localStorage: show its change here.
+addEventListener('storage', e => { if (e.key === ProductivityStore.KEY) refresh(); });
 
 (async function start() {
   await refresh();

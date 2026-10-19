@@ -55,11 +55,17 @@
   }
 
   function createStore(storage) {
-    let data = null;
+    let data = null;    // in-memory copy of the stored data
+    let loaded = null;  // the storage string `data` was parsed from or last saved as
 
+    // Re-read storage whenever another tab has written to it since this one last read or saved.
+    // Each tab keeps its own in-memory copy; without this check a tab would write its outdated copy
+    // back on its next request and undo what the other tab did.
     function load() {
-      if (data) return data;
-      try { data = JSON.parse(storage.getItem(KEY)) || empty(); } catch { data = empty(); }
+      const raw = storage.getItem(KEY);
+      if (data && raw === loaded) return data;
+      loaded = raw;
+      try { data = JSON.parse(raw) || empty(); } catch { data = empty(); }
       if (data.version !== VERSION) {  // version 1 or earlier: integer ids
         data = { version: VERSION, ...reId(data.projects || [], data.tasks || [], data.records || []) };
         save();
@@ -67,7 +73,8 @@
       for (const t of data.tasks) if (!('parent_id' in t)) t.parent_id = null;  // saved before sub-tasks existed
       return data;
     }
-    const save = () => storage.setItem(KEY, JSON.stringify(data));
+    // Writes only when something changed, so a read-only request never touches storage.
+    const save = () => { const s = JSON.stringify(data); if (s !== loaded) storage.setItem(KEY, s); loaded = s; };
     const find = (table, id) => data[table].find(x => x.id === id) || fail(404, 'not found');
     const running = () => data.records.filter(r => r.end == null).sort((a, b) => b.start - a.start)[0] || null;
     const endRunning = t => { for (const r of data.records) if (r.end == null) r.end = t; };

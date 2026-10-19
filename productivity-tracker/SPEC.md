@@ -26,7 +26,7 @@ this week and this month, correct mistakes by editing records, and back the data
 7. I can see reports for this week, last 7 days, this month, last 30 days, and all time: total, active days, average per active day, a daily stacked bar chart by project, a weekly chart for the last 8 weeks, an hour-of-day chart, and a by-project breakdown.
 8. I can see a month calendar with a total and project dots per day, and the records of a selected day.
 9. I can export all data as JSON and import a JSON backup, which replaces all data. Import accepts only a version 1 backup with all three tables present.
-10. The app survives a browser reload and a server restart without losing data.
+10. The app survives a browser reload and a server restart without losing data. Several tabs of the app in one browser share the data: an edit in one appears in the others, and no tab overwrites another's edit.
 11. I can switch between light, dark and system theme, and pick an accent color (teal, blue, purple). The choice persists across reloads in this browser.
 12. I can toggle a continuous kitchen-timer ticking sound with one button. It plays until I toggle it off, independent of the timer, and keeps going when the tab is in the background. It is off on every page load.
 13. Data is stored in this browser. Export writes a JSON backup; Import offers Merge, which combines the file with what is here, or Replace all. Two copies of the app, such as a phone and a desktop, get the same data by exporting on one and merging on the other. Backups from the archived server (version 1) import too.

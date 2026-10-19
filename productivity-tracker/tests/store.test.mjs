@@ -230,6 +230,20 @@ test('data persists through storage', () => {
   assert.equal(createStore(storage).request('GET', 'api/state').projects[0].name, 'kept');
 });
 
+test('two stores over one storage see each other and a read never overwrites a write', () => {
+  const m = new Map(); let writes = 0;
+  const storage = { getItem: k => m.get(k) ?? null, setItem: (k, v) => { writes++; m.set(k, v); } };
+  const a = createStore(storage), b = createStore(storage);
+  a.request('GET', 'api/state');  // a now holds an in-memory copy of the empty data
+  const fromB = b.request('POST', 'api/projects', { name: 'from B' });
+  const before = writes;
+  assert.equal(a.request('GET', 'api/state').projects[0].id, fromB.id);  // a sees b's write
+  assert.equal(writes, before);  // and the read wrote nothing
+  assert.ok(storage.getItem(KEY).includes(fromB.id));
+  a.request('POST', 'api/projects', { name: 'from A' });
+  assert.deepEqual(b.request('GET', 'api/state').projects.map(p => p.name), ['from A', 'from B']);
+});
+
 // --- sub-tasks: parent_id, at most three levels, subtree delete, import checks ---
 const tree = s => {
   const p = s.request('POST', 'api/projects', { name: 'P' });

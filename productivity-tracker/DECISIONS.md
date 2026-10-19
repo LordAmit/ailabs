@@ -86,6 +86,10 @@ The generated names contained dots, which zsh and bash cannot export. Default da
 
 **Undo after delete replaces the confirmation dialogs** (user, 2026-10-16, chosen from five suggested features; the other four were discarded). The delete runs at once, and the rows it removes (a project with its tasks and records, a task subtree with the records that pointed into it, or one record) are kept in memory for eight seconds behind an "Undo" bar at the bottom of the screen. Undo is a merge import of those rows: `api/import?mode=merge` already restores rows by id, records and their task links included, so the store gained no code, only a test. Deferring the delete until the bar expires was rejected because every view would have to hide the pending rows. Eight seconds and "a new delete replaces the previous offer" are assumptions made by Claude. The two `confirm()` calls, for projects and for tasks with sub-tasks, are gone.
 
+## 2026-10-19
+
+**The store re-reads localStorage when another tab has written to it, and a request writes only when it changed something.** Bug report: with two tabs open, an edit in the newer tab was undone when the older tab was shown again. Cause: each tab parsed localStorage once and kept the copy in memory, and every request, GETs included, wrote that copy back, so the older tab's `visibilitychange` refresh overwrote the newer tab's data. Now `load()` compares the stored string with the one it last parsed or saved and re-parses on a difference, and `save()` skips the write when the serialized data is unchanged. `app.js` also listens for the `storage` event so the other tab re-renders at once. Two tabs editing the same row in the same instant remain last write wins; a merge layer was not worth it for one user. Considered and rejected: a `BroadcastChannel` (the `storage` event already carries the signal) and moving the data to IndexedDB (no gain for this size).
+
 ## Defects found in the generated code, 2026-10-15
 
 Listed for the record; all fixed unless noted.
