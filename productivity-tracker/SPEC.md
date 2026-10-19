@@ -47,7 +47,8 @@ mobile apps, and any network exposure of the server beyond localhost.
 
 ## UI
 
-- The header shows the app name, "Productivity Tracker", as a small label above the current view's title, so the installed app is identifiable without a browser tab. A second small label under the title shows the version, currently "version 0.1.0-alpha.5". The string lives in index.html only.
+- The header shows the app name "Productivity Tracker" as the heading in Geist Mono, with "Tracker" in the accent color, so the installed app is identifiable without a browser tab. Under it, the version as the smallest label, currently "version 0.1.0-alpha.5"; the string lives in index.html only. The header does not repeat the current view's name; the tabs show it.
+- In project detail, the project's name is shown in Geist Mono under the mode row, above the colored total block.
 - Navigation is a tab row under the title, in this order: Projects, Reports, Timeline, Calendar. Projects is the view shown on load. Each tab has an icon and a label.
 - Dialog Cancel and Delete buttons always work, even when a required field is empty.
 - Enter in a dialog field saves (the Save button), never Cancel or Delete.

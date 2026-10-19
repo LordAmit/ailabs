@@ -157,7 +157,7 @@ async function undoDelete() {
 }
 
 // ---------- rendering ----------
-const view = $('#view'), title = $('#title');
+const view = $('#view');
 
 function setView(v) { S.view = v; S.projectId = null; render(); }
 
@@ -259,7 +259,6 @@ setInterval(tickRunbar, 1000);
 
 // --- Timeline ---
 async function renderTimeline() {
-  title.textContent = 'Timeline';
   const from = epoch(addDays(startOfDay(new Date()), -(S.timelineDays - 1)));
   const recs = await fetchRecords(from, now() + 86400);
   if (!S.projects.length) {
@@ -310,7 +309,6 @@ function recHtml(r, seg) {
 // --- Projects ---
 async function renderProjects() {
   if (S.projectId) return renderProjectDetail();
-  title.textContent = 'Projects';
   const todayFrom = epoch(startOfDay(new Date()));
   const recs = await fetchRecords(todayFrom, now() + 1);
   const today = {};
@@ -349,7 +347,6 @@ function togglePlay(pid, tid) {
 async function renderProjectDetail() {
   const p = proj(S.projectId);
   if (!p) { S.projectId = null; return render(); }
-  title.textContent = p.name;
   const weekFrom = epoch(startOfWeek(new Date()));
   const recs = (await fetchRecords(0, now() + 1)).filter(r => r.project_id === p.id);
   const total = recs.reduce((a, r) => a + dur(r), 0);
@@ -370,6 +367,7 @@ async function renderProjectDetail() {
       <button class="play sm ${tOn ? 'on' : ''}" data-play="${t.id}" style="${tOn ? '' : 'background:' + p.color}" title="${tOn ? 'Stop' : 'Start'}">${playIcon(tOn)}</button></div>`;
   };
   view.innerHTML = modeRowHtml() + `
+    <div class="proj-name">${esc(p.name)}</div>
     <div class="proj-head" style="background:${p.color}">
       <div style="flex:1"><div class="big">${fmtDur(total)}</div><div class="sub">total · ${fmtDur(week)} this week</div></div>
       <button class="play ${on ? 'on' : ''}" id="projPlay" style="background:rgba(0,0,0,.3)" title="${on ? 'Stop' : 'Start'}">${playIcon(on)}</button>
@@ -380,9 +378,9 @@ async function renderProjectDetail() {
       <button class="linkbtn danger" id="delProj">Delete</button>
     </div>
     <div class="section-title">Tasks <button class="linkbtn right" id="addTask">+ Add task</button></div>
-    ${tasks.length ? tasks.map(taskHtml).join('') : '<div class="muted" style="padding:8px 4px">No tasks. Tasks are optional.</div>'}
+    ${tasks.length ? tasks.map(taskHtml).join('') : '<div class="muted" style="padding:8px 4px">No task has been added yet.</div>'}
     <div class="section-title">Recent</div>
-    ${recs.slice(0, 20).map(r => recHtml(r)).join('') || '<div class="muted" style="padding:8px 4px">No records yet.</div>'}`;
+    ${recs.slice(0, 20).map(r => recHtml(r)).join('') || '<div class="muted" style="padding:8px 4px">No recent records available.</div>'}`;
   bindModeRow();
   $('#projPlay').onclick = () => togglePlay(p.id, null);
   $('#editProj').onclick = () => openProjectDialog(p);
@@ -410,7 +408,6 @@ function periodRange(kind) {
   return [new Date(0), addDays(t, 1)];
 }
 async function renderReports() {
-  title.textContent = 'Reports';
   const [from, to] = periodRange(S.reportPeriod);
   const recs = await fetchRecords(epoch(from), epoch(to));
   const periods = [['week', 'This week'], ['7d', 'Last 7 days'], ['month', 'This month'], ['30d', 'Last 30 days'], ['all', 'All time']];
@@ -497,7 +494,6 @@ function barChart(labels, series, unit) {
 
 // --- Calendar ---
 async function renderCalendar() {
-  title.textContent = 'Calendar';
   const m = S.calMonth;
   const gridStart = startOfWeek(m), gridEnd = addDays(gridStart, 42);
   const recs = await fetchRecords(epoch(gridStart), epoch(gridEnd));

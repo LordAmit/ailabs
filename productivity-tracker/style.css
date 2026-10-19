@@ -62,10 +62,10 @@ input, select { font: inherit; border-radius: 0; }
 
 .topbar { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--border-strong); }
 .toprow { display: flex; align-items: center; gap: 10px; padding: 16px 16px 8px; }
-.titles { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.app-name { color: var(--muted); }
-.app-version { color: var(--muted); }
-.topbar h1 { margin: 0; font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -.02em; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.app-name { margin: 0; font-family: var(--font-mono); font-size: 20px; font-weight: 600; letter-spacing: -.01em; line-height: 1; }
+.app-name .accent { color: var(--accent-ink); }
+.app-version { color: var(--muted); font-size: 9px; }
 .spacer { flex: 1; }
 .icon-btn { width: 36px; height: 36px; display: grid; place-items: center; color: var(--muted); border: 1px solid transparent; }
 .icon-btn:hover { color: var(--text); border-color: var(--border); }
@@ -146,6 +146,7 @@ main { flex: 1; padding: 8px 16px 110px; }
 .task.done .tname { text-decoration: line-through; color: var(--muted); }
 .task .tname { flex: 1; cursor: pointer; }
 .task input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
+.proj-name { font-family: var(--font-mono); font-size: 16px; font-weight: 600; margin: 0 0 10px; overflow-wrap: anywhere; }
 .proj-head { padding: 20px 16px; margin-bottom: 12px; color: #fff; display: flex; align-items: center; gap: 12px; }
 .proj-head .big { font-family: var(--font-display); font-size: 32px; font-weight: 700; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
 .proj-head .sub { opacity: .85; font-size: 12px; font-family: var(--font-mono); margin-top: 6px; }
