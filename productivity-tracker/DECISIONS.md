@@ -90,6 +90,8 @@ The generated names contained dots, which zsh and bash cannot export. Default da
 
 **The store re-reads localStorage when another tab has written to it, and a request writes only when it changed something.** Bug report: with two tabs open, an edit in the newer tab was undone when the older tab was shown again. Cause: each tab parsed localStorage once and kept the copy in memory, and every request, GETs included, wrote that copy back, so the older tab's `visibilitychange` refresh overwrote the newer tab's data. Now `load()` compares the stored string with the one it last parsed or saved and re-parses on a difference, and `save()` skips the write when the serialized data is unchanged. `app.js` also listens for the `storage` event so the other tab re-renders at once. Two tabs editing the same row in the same instant remain last write wins; a merge layer was not worth it for one user. Considered and rejected: a `BroadcastChannel` (the `storage` event already carries the signal) and moving the data to IndexedDB (no gain for this size).
 
+**Versions follow semver with a pre-release tag for the stage** (user, 2026-10-19). Alpha releases are `0.1.0-alpha.n`, beta releases `0.2.0-beta.n` (or a later minor), and the first public release is `1.0.0`, with fixes as `1.0.1`. The user first proposed encoding the stage in the digits (alpha `0.0.n`, beta `0.n.0`, public `n.0.0`); that left no slot for a fix during beta, so the pre-release tag won. The version is shown as a small label under the view title and is written in index.html only; nothing else reads it.
+
 ## Defects found in the generated code, 2026-10-15
 
 Listed for the record; all fixed unless noted.
