@@ -8,5 +8,6 @@ Out of the current plan, agreed on 2026-10-15. See SPEC.md for context.
 - [x] Guided tour (done 2026-10-16: menu entry plus a "Take the tour" link in the empty Projects view; does not start by itself; no sample data, a demo card and demo running bar in the DOM only)
 - [x] Paste to create many tasks (done 2026-10-16: New task dialog only; list markers stripped; confirmation above five lines)
 - [x] Sub-tasks (done 2026-10-16: up to three levels, parent timer allowed, sub-task time rolls into the parent row)
+- [x] Task estimates (done 2026-10-22: "name !15 min" sets a budget, play counts down what is left, then a stopwatch; Edit task field)
 
 Dropped when the Flask server was archived: splitting app.py, a server-side project filter, and Wi-Fi access to the server.

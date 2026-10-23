@@ -33,9 +33,20 @@ this week and this month, correct mistakes by editing records, and back the data
 14. I can install the app from GitHub Pages as a standalone app on desktop and phone. The installed copy works with no network.
 15. I can start a countdown instead of a stopwatch: I pick the length (15, 25, 45, 60 minutes or any number up to 720), every play button then starts a countdown, and the record ends by itself at the planned end, even if the page was closed. A short chime plays if the page is open. I can stop it early. The last length is remembered.
 16. The ticking sound is a standing toggle. It plays only while a stopwatch or countdown is running and stops when the record ends.
-17. I can take a guided tour of seven cards that point at the mode row, a play button, the running bar, the tabs, and the menu for backup and theme. It starts from the menu, or from the empty Projects view until I have finished or skipped it once. It never starts by itself and changes no data: with no project or nothing running it shows a demo project card and a demo running bar that disappear when it ends.
-18. I can use single-key shortcuts: ? shows the list, 1 to 4 switch views, N new project, T add a task to the open project, R add a record, S stops the timer or starts one on the open project or else the last tracked project, M switches stopwatch and countdown, left and right arrows move the Calendar month, comma opens the menu, Esc closes a dialog or goes back to the project list. Keys are ignored while typing in a field, while a dialog is open, and during the tour. The list is also in the menu under Help.
+17. I can take a guided tour of eight cards: a welcome, the mode row, a play button, a card on tasks (Markdown lists and sub-tasks), the running bar, the tabs, and the menu for backup and theme. It starts from the menu, or from the empty Projects view until I have finished or skipped it once. It never starts by itself and changes no data: with no project or nothing running it shows a demo project card and a demo running bar that disappear when it ends.
+18. I can use single-key shortcuts: ? shows the list, 1 to 4 switch views, N new project, A add a task to the open project, R add a record, S stops the timer or starts one on the open project or else the last tracked project, M switches stopwatch and countdown, left and right arrows move the Calendar month, comma opens the menu, Esc closes a dialog or goes back to the project list. Keys are ignored while typing in a field, while a dialog is open, and during the tour. The list is also in the menu under Help.
 19. In the New task dialog I can paste text with line breaks to add one task per non-empty line. A leading list marker ("- ", "* ", "1. ", "1)", "[ ] ") is dropped. More than five lines ask for confirmation first. A single line pastes as usual.
+20. I can give a task an estimate by ending its name with an exclamation mark and a length:
+    "do blah !15 min", "do blah !15min", "do blah !15m", "do blah !1h", "do blah !1h30m",
+    "do blah !1:30", "do blah !90". The length is stored in minutes, 1 to 720. A pasted list
+    parses each line the same way. If the part after the last exclamation mark is not a length, or
+    nothing precedes it, the whole text stays the name. Play on a task with an estimate starts a
+    countdown of the estimate minus the time already tracked on that task, whatever the Stopwatch
+    or Countdown chip is set to; the time left is kept in seconds. When the tracked time has reached
+    the estimate, play starts a stopwatch. The task row shows the estimate, the time left, or how
+    far over it is; sub-task time does not count toward a parent's estimate, and a completed task
+    keeps the line. Edit task has an Estimate field in minutes; blank clears it. Its Name field
+    parses a trailing length the same way, and a length there wins over the field.
 
 The app never talks to a server. The archived backend is kept for reference only.
 
@@ -47,9 +58,10 @@ mobile apps, and any network exposure of the server beyond localhost.
 
 ## UI
 
-- The header shows the app name "Productivity Tracker" as the heading in Geist Mono, with "Tracker" in the accent color, so the installed app is identifiable without a browser tab. Under it, the version as the smallest label, currently "version 0.1.0-alpha.5"; the string lives in index.html only. The header does not repeat the current view's name; the tabs show it.
+- The header shows the app name "Productivity Tracker" as the heading in Geist Mono, with "Tracker" in the accent color, so the installed app is identifiable without a browser tab. Under it, the version as the smallest label, currently "version 0.1.0-alpha.6"; the string lives in index.html only. The header does not repeat the current view's name; the tabs show it.
 - In project detail, the project's name is shown in Geist Mono under the mode row, above the colored total block.
 - Navigation is a tab row under the title, in this order: Projects, Reports, Timeline, Calendar. Projects is the view shown on load. Each tab has an icon and a label.
+- The New task, New sub-task and Edit task dialogs have a hint under Name that names the "!" form for an estimate; Edit task also has an Estimate (minutes) field with the placeholder "none".
 - Dialog Cancel and Delete buttons always work, even when a required field is empty.
 - Enter in a dialog field saves (the Save button), never Cancel or Delete.
 - No delete asks for confirmation. A delete happens at once and an undo bar at the bottom of the screen, above the running bar when that is visible, offers Undo for eight seconds. A new delete replaces the offer.
@@ -59,8 +71,9 @@ mobile apps, and any network exposure of the server beyond localhost.
 - A mode row above the project list and in project detail: Stopwatch and Countdown chips. When Countdown is active a drawer slides out to the right with the length presets and a minutes field; choosing Stopwatch closes it. The running bar shows an hourglass and the time left, red under one minute.
 - Visual style follows getartcraft.com/apps: no rounded corners, 1px hairline borders, inverted (ink on paper, paper on ink) primary buttons, small uppercase monospace labels with wide letter spacing. Fonts: Archivo for headings and large numbers, Inter for body text, Geist Mono for labels and times, Instrument Serif italic for empty states. The fonts ship with the app and are cached by the service worker, so the installed copy looks the same offline.
 - Palette: light is ink #101014 on paper #f2f1ee; dark is paper on #121316. Accent default #2d81ff, with teal and purple alternatives. Running state uses a warm orange.
-- In project detail, tasks are listed as a tree: sub-tasks are indented under their parent, each row shows its rolled-up time when there is any, and rows above the deepest level have a "+ Sub" link that opens the New sub-task dialog. The record dialog's task list is in the same order, indented.
+- In project detail, tasks are listed as a tree: sub-tasks are indented under their parent, each row shows its rolled-up time when there is any, then its estimate line in the small uppercase monospace style when it has one ("15M", "10M LEFT OF 15M", "OVER BY 3M OF 15M", hours as "1H30M"), and rows above the deepest level have a "+ Sub" link that opens the New sub-task dialog. The record dialog's task list is in the same order, indented.
 - The guided tour dims the page, cuts a hole around the control it describes, and places a card under it (above it when there is no room). The card has a step counter, Skip, Back and Next (Done on the last card); arrow keys move and Esc leaves. The page under the tour is inert, so nothing in it can be clicked. The Theme card holds live theme and accent chips.
+- The empty Projects view offers "Take the tour" as a bordered button in the accent color under "+ New project" until the tour has been finished or skipped once.
 - The shortcut list is a dialog: a two-column grid of key caps in the monospace label style and plain descriptions, with a Close button.
 
 ## Tech Stack
@@ -115,11 +128,11 @@ old.backup.pyserver/  Archived Flask server: app.py, requirements, pytest tests,
 
 ```
 projects: id, name, color, archived 0|1, created epoch
-tasks:    id, project_id, parent_id|null, name, completed 0|1, created epoch
+tasks:    id, project_id, parent_id|null, name, completed 0|1, created epoch, estimate minutes|null
 records:  id, project_id, task_id|null, start epoch, end epoch|null, planned_end epoch|null
 ```
 
-`parent_id` nests a task under another task of the same project, at most three levels deep; the parent is set when the task is made and does not change. Stored data and backups without the field read as top-level tasks.
+`parent_id` nests a task under another task of the same project, at most three levels deep; the parent is set when the task is made and does not change. Stored data and backups without the field read as top-level tasks. `estimate` is a whole number of minutes, 1 to 720, or null; stored data and backups without it read as null.
 
 Ids are UUID strings, so rows made on different devices never collide. Stored as one JSON object
 under the localStorage key `productivity.data` with `version: 2`. Deleting a project removes its
@@ -146,7 +159,7 @@ archived server, kept as the shape of the operations and so its tests still mirr
 |---|---|
 | GET /api/state | projects, tasks, running record, server time |
 | POST, PUT, DELETE /api/projects[/id] | project CRUD |
-| POST, PUT, DELETE /api/tasks[/id] | task CRUD; POST takes optional `parent_id`; DELETE removes the subtree |
+| POST, PUT, DELETE /api/tasks[/id] | task CRUD; POST takes optional `parent_id` and `estimate`; PUT takes `estimate` (null clears); DELETE removes the subtree |
 | POST /api/timer/start | ends any running record, starts a new one |
 | POST /api/timer/stop | ends the running record, deletes zero-length records |
 | GET /api/records?from=&to= | records overlapping the half-open range |
@@ -157,7 +170,10 @@ archived server, kept as the shape of the operations and so its tests still mirr
 Errors carry a status: 400 for a missing or malformed field, 404 for an unknown project or record,
 400 for a task that does not belong to the given project.
 
-`POST api/timer/start` takes optional `minutes` (1 to 720) and sets `planned_end`. Before every
+`POST api/timer/start` takes optional `minutes` (1 to 720) and sets `planned_end`. When the task has an
+estimate, `minutes` is ignored: `planned_end` is the start plus the estimate minus the seconds in the
+task's own ended records, or absent when nothing is left. `store.js` also exports `parseTaskLine(text)`,
+which splits "name !length" into `{ name, estimate }`; the dialogs call it. Before every
 request the store closes any running record whose `planned_end` has passed, with
 `end = planned_end`. `PUT api/records/:id` accepts `planned_end`. Import accepts records without it.
 `POST api/import?mode=merge` merges; without the query it replaces. A task whose parent is missing, in another project, deeper than three levels or part of a cycle is rejected with 400, on create and on import. Undo after a delete is a merge import of the rows taken before the delete.
@@ -215,7 +231,7 @@ theme and accent become `data-theme` and `data-accent` on `<html>`.
 14. Merging the same backup twice adds nothing the second time; merging a backup from another device adds its rows and keeps local ones; a backup whose rows reference a missing project is rejected and local data is unchanged.
 15. Data saved by an earlier version of the app (integer ids) opens without loss and is rewritten with UUID ids.
 16. The app makes no network request for data: with the network off, every view, dialog and import works.
-17. The guided tour runs through all seven cards from the menu and from the empty Projects view, and the stored data is byte-for-byte the same before and after it.
+17. The guided tour runs through all eight cards from the menu and from the empty Projects view, and the stored data is byte-for-byte the same before and after it.
 18. Every shortcut in the list does what it says, and no key does anything while a text field has focus.
 19. Pasting three lines into New task creates three tasks in that order and closes the dialog; pasting one line only fills the field; declining the confirmation for six lines creates nothing.
 20. A task, a sub-task and a sub-sub-task can be made; a fourth level is refused. Time on the sub-sub-task shows on all three rows. Deleting the top task removes all three, and their records stay with the project.

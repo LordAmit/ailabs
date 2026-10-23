@@ -72,3 +72,50 @@ and can run alongside Phase 1 in a second session if wanted.
 ## Open Questions
 
 None.
+
+# Plan: Task estimates (2026-10-22)
+
+Spec: tasks/spec-task-estimate.md, approved 2026-10-22. Four tasks, in order, each verified before
+the next. All work is in the static app; no new files besides test cases.
+
+## Components
+
+| Piece | Where | What changes |
+|---|---|---|
+| Length parser | store.js, exported next to createStore | `parseTaskLine(text)` returns `{ name, estimate }`; `estimate` is minutes or null |
+| Task field | store.js | `estimate` on tasks: create, update, load of old data, export, import validation |
+| Start rule | store.js `POST api/timer/start` | task with an estimate: `planned_end = start + estimate*60 - tracked` when positive, else none; `minutes` ignored |
+| Dialogs | app.js `openTaskDialog` | New task and paste call the parser; Edit task gets an Estimate field and parses Name too |
+| Task row | app.js `renderProjectDetail` | per-task own time (not rolled up) for the estimate line: "10m left of 15m", "15m", "over by 3m of 15m" |
+| Start call | app.js `startTimer` | sends `minutes` only when Countdown chip is on and the task has no estimate |
+| Docs | SPEC.md, README.md, DECISIONS.md, TODO.md, tests/MANUAL.md, tour text, version label | story 20, data model, operations, UI line, hint, checklist, alpha.6 |
+
+## Dependency graph
+
+```
+T23 parser (store.js + tests)
+T24 estimate field and start rule (store.js + tests)
+    └── T25 frontend (app.js, style.css)        needs T23 and T24
+            └── T26 docs and version              needs T25
+```
+
+T23 and T24 both edit store.js and the test file, so they run in sequence in one session, but
+neither depends on the other's code.
+
+## Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Edit task re-parses a name that ends in "!" plus a number, such as "Call 911!" | Low | The rule needs text after the last "!" to be a length; "Call 911!" has none, so it stays. A name like "Sprint !3" is the one case that changes, and the spec accepts it |
+| Tracked time for the start rule and for the row disagree | Med | Both use the task's own records only; the row adds the running record's live duration, the store sums ended records at start |
+| `minutes` ignored silently surprises the Countdown chip user | Low | The row shows the time left, and the running bar shows the countdown either way |
+| Import of a hand-edited backup with a bad estimate | Low | Import validation rejects a non-integer or out-of-range estimate with 400, like other fields |
+
+## Checkpoint after T24
+
+`node --test tests/store.test.mjs` green with the new cases; `node --check store.js`. Review with
+the user before T25.
+
+## Checkpoint after T26
+
+Spec success criteria 1 to 7 walked once in the browser; version label reads 0.1.0-alpha.6.

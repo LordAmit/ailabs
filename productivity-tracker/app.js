@@ -72,6 +72,14 @@ function fmtDur(s) {
   if (m) return `${m}m`;
   return `${s}s`;
 }
+// Whole minutes as "15m", "1h", "1h30m": the task row's estimate line.
+function fmtMin(m) { const h = Math.floor(m / 60), r = m % 60; return h ? `${h}h${r ? `${r}m` : ''}` : `${r}m`; }
+// "15m" untouched, "10m left of 15m" while time is left, "over by 3m of 15m" after. own: seconds tracked on the task itself.
+function estimateText(estimate, own) {
+  if (!own) return fmtMin(estimate);
+  const left = estimate * 60 - own;
+  return left > 0 ? `${fmtMin(Math.ceil(left / 60))} left of ${fmtMin(estimate)}` : `over by ${fmtMin(Math.floor(-left / 60))} of ${fmtMin(estimate)}`;
+}
 function fmtClock(s) {
   s = Math.max(0, Math.floor(s));
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
@@ -124,7 +132,8 @@ async function fetchRecords(fromEpoch, toEpoch) {
 }
 async function startTimer(project_id, task_id = null) {
   const body = { project_id, task_id };
-  if (PREFS.mode === 'countdown') body.minutes = PREFS.minutes;
+  // A task with an estimate counts down what is left of it (the store decides); the chip applies to everything else.
+  if (PREFS.mode === 'countdown' && task(task_id)?.estimate == null) body.minutes = PREFS.minutes;
   await api('POST', 'api/timer/start', body);
   await refresh();
 }
@@ -316,7 +325,7 @@ async function renderProjects() {
   const active = S.projects.filter(p => !p.archived), archived = S.projects.filter(p => p.archived);
   if (!S.projects.length) {
     view.innerHTML = `<div class="empty">No projects yet.<br><button class="add-card" id="addProj">+ New project</button>
-      ${PREFS.tourSeen ? '' : '<br><button class="linkbtn" id="tourBtn">Take the tour</button>'}</div>`;
+      ${PREFS.tourSeen ? '' : '<br><button class="btn tour-btn" id="tourBtn">Take the tour</button>'}</div>`;
     $('#addProj').onclick = () => openProjectDialog(null);
     if ($('#tourBtn')) $('#tourBtn').onclick = startTour;
     return;
@@ -353,8 +362,9 @@ async function renderProjectDetail() {
   const week = recs.reduce((a, r) => a + segments(r).filter(s => s.start >= weekFrom).reduce((x, s) => x + (s.end - s.start), 0), 0);
   const tasks = taskTree(p.id);
   // Time per task, all time, with sub-task time rolled into the parent. Reverse tree order visits children before parents.
-  const taskTime = {};
+  const taskTime = {}, ownTime = {};  // ownTime: the task's records only, for its estimate line
   for (const r of recs) if (r.task_id) taskTime[r.task_id] = (taskTime[r.task_id] || 0) + dur(r);
+  Object.assign(ownTime, taskTime);
   for (const { t } of [...tasks].reverse()) if (t.parent_id) taskTime[t.parent_id] = (taskTime[t.parent_id] || 0) + (taskTime[t.id] || 0);
   const on = S.running && S.running.project_id === p.id && S.running.task_id == null;
   const taskHtml = ({ t, depth }) => {
@@ -363,6 +373,7 @@ async function renderProjectDetail() {
       <input type="checkbox" ${t.completed ? 'checked' : ''} data-done="${t.id}">
       <span class="tname" data-edit="${t.id}">${esc(t.name)}</span>
       ${taskTime[t.id] ? `<span class="ttime">${fmtDur(taskTime[t.id])}</span>` : ''}
+      ${t.estimate != null ? `<span class="testim" title="Estimate">${estimateText(t.estimate, ownTime[t.id] || 0)}</span>` : ''}
       ${depth < MAX_TASK_DEPTH ? `<button class="linkbtn sub" data-sub="${t.id}" title="Add a sub-task">+ Sub</button>` : ''}
       <button class="play sm ${tOn ? 'on' : ''}" data-play="${t.id}" style="${tOn ? '' : 'background:' + p.color}" title="${tOn ? 'Stop' : 'Start'}">${playIcon(tOn)}</button></div>`;
   };
@@ -575,7 +586,8 @@ function openTaskDialog(t, pid, parentId = null) {
   openDialog(`<h2>${t ? 'Edit task' : parent ? 'New sub-task' : 'New task'}</h2>
     ${parent ? `<p class="muted" style="margin:-10px 0 14px">Under ${esc(parent.name)}</p>` : ''}
     <div class="field"><label>Name</label><input name="name" required autofocus value="${esc(t?.name || '')}">
-      ${t ? '' : '<div class="muted" style="font-size:12px;margin-top:4px">Paste several lines to add one task per line.</div>'}</div>
+      <div class="muted" style="font-size:12px;margin-top:4px">End with ! and a length for an estimate, for example "!25 min".${t ? '' : ' Paste several lines to add one task per line.'}</div></div>
+    ${t ? `<div class="field"><label>Estimate (minutes)</label><input type="number" name="estimate" min="1" max="720" step="1" placeholder="none" value="${t.estimate ?? ''}"></div>` : ''}
     <div class="actions">${t ? '<button class="btn danger" value="delete">Delete</button>' : ''}<button class="btn" value="cancel">Cancel</button><button class="btn primary" value="ok">Save</button></div>`,
     async (fd, action) => {
       if (action === 'delete') {
@@ -585,7 +597,12 @@ function openTaskDialog(t, pid, parentId = null) {
         const n = tasks.length - 1;
         return offerUndo(`"${t.name}"${n ? ` and ${n} sub-task${n > 1 ? 's' : ''}` : ''}`, rows);
       }
-      if (t) await api('PUT', `api/tasks/${t.id}`, { name: fd.get('name') }); else await api('POST', 'api/tasks', { name: fd.get('name'), project_id: pid, parent_id: parentId });
+      const { name, estimate } = ProductivityStore.parseTaskLine(fd.get('name'));
+      if (t) {
+        // A length typed after "!" in the name wins over the field; a blank field clears the estimate.
+        const field = fd.get('estimate').trim();
+        await api('PUT', `api/tasks/${t.id}`, { name, estimate: estimate ?? (field ? parseInt(field, 10) : null) });
+      } else await api('POST', 'api/tasks', { name, project_id: pid, parent_id: parentId, estimate });
       refresh();
     });
   if (t) return;
@@ -594,7 +611,7 @@ function openTaskDialog(t, pid, parentId = null) {
     if (!names.length) return;  // one line: the normal paste
     e.preventDefault();
     if (names.length > CONFIRM_TASKS_ABOVE && !confirm(`Create ${names.length} tasks?`)) return;
-    for (const name of names) await api('POST', 'api/tasks', { name, project_id: pid, parent_id: parentId });
+    for (const line of names) await api('POST', 'api/tasks', { ...ProductivityStore.parseTaskLine(line), project_id: pid, parent_id: parentId });
     dlg.close();
     refresh();
   };
@@ -709,12 +726,13 @@ function toggleTick() { setPref('tick', !PREFS.tick); syncTick(); }
 // only, and the next render() removes them. Started from the menu, or from the empty Projects view
 // until it has been finished or skipped once (PREFS.tourSeen). It never starts by itself.
 const TOUR = [
-  { title: 'Welcome', text: 'This tour has seven cards and does not change your data. Use the buttons or the arrow keys to move, and Esc to leave.' },
-  { target: '.mode-row', title: 'Stopwatch or countdown', text: 'This row sets how the play buttons start. A stopwatch runs until you stop it. Countdown opens a drawer with 15, 25, 45, 60 or any number of minutes, and the timer ends by itself at the planned time, even if the page is closed.' },
-  { target: '.proj .play', title: 'Start a timer', text: 'The play button starts a timer on the project. Starting another timer stops this one. Tap the card to open the project, where each task has its own play button and the records are listed.' },
-  { target: '#runbar', title: 'The running bar', text: 'This bar stays at the bottom of every view while a timer runs and shows a live clock. The square button stops the timer.', demoRun: true },
-  { target: '.tabs', title: 'Four views', text: 'Projects lists your projects. Reports shows totals and charts for a period. Timeline lists records by day, and tapping a record opens it for editing. Calendar shows a month with a total for each day.' },
-  { target: '#menuBtn', title: 'Backup', text: 'The menu has Export, which writes everything to a JSON file, and Import, which merges a file into the current data or replaces it. To use two devices, export on one and merge on the other.' },
+  { title: 'Welcome', text: 'Welcome to the Tour! Let\'s explore how this app works. Press Esc anytime to stop the tour. You can revisit the Tour from the settings menu.' },
+  { target: '.mode-row', title: 'Stopwatch or countdown', text: 'This row sets how the play buttons start. Stopwatch runs until you stop it. Countdown runs for a set number of minutes and ends on its own, even if the page is closed. To give a task its own estimate, end its name with ! and a length, for example "Write intro !25 min". Play on that task then counts down the time left on it.' },
+  { target: '.proj .play', title: 'Start a timer', text: 'The play button starts a timer on the project. Starting another timer stops this one. Tap the card to open the project. Each task there has its own play button, and the records are listed below.' },
+  { title: 'Tasks', text: 'Inside a project, + Add task adds a task. Paste a Markdown list into the Name field to add one task per line; list markers like "- " and "1. " are dropped. A line can carry a countdown timer too, for example "- Write intro !25 min". Press + Sub on a task row to add a sub-task, up to three levels.' },
+  { target: '#runbar', title: 'The running bar', text: 'This bar stays at the bottom of every view while a timer runs. It shows a live clock. The square button stops the timer.', demoRun: true },
+  { target: '.tabs', title: 'Four views', text: 'Projects lists your projects. Reports shows totals and charts for a period. Timeline lists records by day; tap a record to edit it. Calendar shows a month with a total for each day.' },
+  { target: '#menuBtn', title: 'Backup', text: 'The menu has Export, which saves everything to a JSON file, and Import, which merges a file into your data or replaces it. To use two devices, export on one and import on the other.' },
   { target: '#menuBtn', title: 'Theme', text: 'The theme and the accent color are in the same menu. You can also change them here.', chips: true },
 ];
 let tourStep = -1;  // index into TOUR while the tour is open, otherwise -1
@@ -806,7 +824,7 @@ const SHORTCUTS = [
   ['?', 'This list'],
   ['1 2 3 4', 'Projects, Reports, Timeline, Calendar'],
   ['N', 'New project'],
-  ['T', 'Add a task to the open project'],
+  ['A', 'Add a task to the open project'],
   ['R', 'Add a record'],
   ['S', 'Stop the timer. If none runs, start one on the open project, or else on the last tracked project'],
   ['M', 'Switch between stopwatch and countdown'],
@@ -836,7 +854,7 @@ document.addEventListener('keydown', e => {
   const actions = {
     '?': openShortcuts, ',': openMenu,
     n: () => openProjectDialog(null),
-    t: () => { if (S.view === 'projects' && S.projectId) openTaskDialog(null, S.projectId); },
+    a: () => { if (S.view === 'projects' && S.projectId) openTaskDialog(null, S.projectId); },
     r: () => openRecordDialog(null),
     s: toggleTimerKey,
     m: () => { const m = PREFS.mode === 'countdown' ? 'stopwatch' : 'countdown'; const b = $(`[data-start-mode="${m}"]`, view); if (b) b.click(); else setPref('mode', m); },

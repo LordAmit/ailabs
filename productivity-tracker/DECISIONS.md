@@ -92,6 +92,14 @@ The generated names contained dots, which zsh and bash cannot export. Default da
 
 **Versions follow semver with a pre-release tag for the stage** (user, 2026-10-19). Alpha releases are `0.1.0-alpha.n`, beta releases `0.2.0-beta.n` (or a later minor), and the first public release is `1.0.0`, with fixes as `1.0.1`. The user first proposed encoding the stage in the digits (alpha `0.0.n`, beta `0.n.0`, public `n.0.0`); that left no slot for a fix during beta, so the pre-release tag won. The version is shown as a small label under the view title and is written in index.html only; nothing else reads it.
 
+## 2026-10-22
+
+**Task estimates: "!" and a length at the end of the name, play counts down what is left** (user, 2026-10-22, through an interview before the spec). The estimate is a budget that drains across sessions: with 5 minutes tracked on a 15 minute task, play starts a 10 minute countdown, and once the budget is gone play starts a plain stopwatch rather than refusing or counting negative. The separator started as ";" with "\;" for a literal semicolon; the user replaced it with "!" so that no escape is needed, since a trailing "!" with nothing after it stays part of the name ("Ship it!"). Edit task parses the name the same way, and a length there wins over its Estimate field. Completed tasks keep the estimate line. Assumptions made by Claude: the rule lives in the store (`POST api/timer/start` ignores `minutes` for a task with an estimate) so it is tested and the frontend stays thin; only the task's own ended records count, not its sub-tasks', matching how reports stay by project; the time left is kept in seconds rather than rounded to minutes; the parser is exported from store.js so node tests cover it; the field is nullable like `parent_id`, so stored data and backups stay version 2. The feature spec was drafted in tasks/spec-task-estimate.md and folded into SPEC.md story 20 once built.
+
+**Add task shortcut moved from T to A, and "Take the tour" is a bordered button** (user, 2026-10-22). A matches "Add task"; T was taken as the first letter of "task" when the keys were chosen. The tour link in the empty Projects view was a plain accent-colored text link and was easy to miss under "+ New project"; it is now a `.btn` with the accent as its border, keeping the same place and the same one-time rule.
+
+**Tour text rewritten and an eighth card added** (user, 2026-10-22). The welcome card is the user's wording. The other cards were shortened to plain sentences. The mode-row card now shows the "!" estimate form, and a new Tasks card, without a target, covers pasting a Markdown list and sub-tasks.
+
 ## Defects found in the generated code, 2026-10-15
 
 Listed for the record; all fixed unless noted.

@@ -326,3 +326,94 @@ test('merging a snapshot taken before a delete restores the rows by id (undo)', 
   assert.equal(s.request('GET', 'api/state').projects[0].id, p.id);
   assert.equal(s.request('GET', 'api/records').length, 1);
 });
+
+// --- task estimates ---
+
+test('parseTaskLine splits "name !length" into name and minutes', () => {
+  const { parseTaskLine } = require('../store.js');
+  const cases = [
+    ['do blah !15 min', 15], ['do blah!15min', 15], ['do blah !15m', 15], ['do blah !15 mins', 15], ['do blah !15 minutes', 15],
+    ['do blah !1h', 60], ['do blah !1 hr', 60], ['do blah !2 hours', 120], ['do blah !1h30m', 90], ['do blah !1h 30 min', 90],
+    ['do blah !1:30', 90], ['do blah !90', 90], ['do blah ! 25 MIN ', 25], ['do blah !720', 720],
+  ];
+  for (const [text, minutes] of cases) assert.deepEqual(parseTaskLine(text), { name: 'do blah', estimate: minutes }, text);
+});
+
+test('parseTaskLine leaves text without a valid length as the name', () => {
+  const { parseTaskLine } = require('../store.js');
+  for (const text of ['name only', 'Ship it!', 'a !b', 'x !0', 'x !721', 'x !2.5', 'x !1h61m', 'x !1:60', 'x !15 days'])
+    assert.deepEqual(parseTaskLine(`  ${text}  `), { name: text, estimate: null }, text);
+  assert.deepEqual(parseTaskLine('!15'), { name: '!15', estimate: null });
+  assert.deepEqual(parseTaskLine(''), { name: '', estimate: null });
+});
+
+test('parseTaskLine splits at the last exclamation mark', () => {
+  const { parseTaskLine } = require('../store.js');
+  assert.deepEqual(parseTaskLine('Ship it! !15 min'), { name: 'Ship it!', estimate: 15 });
+  assert.deepEqual(parseTaskLine('Ship it! now'), { name: 'Ship it! now', estimate: null });
+});
+
+test('task estimate: create, update, clear, bad values rejected', () => {
+  const s = fresh();
+  const p = s.request('POST', 'api/projects', { name: 'a' });
+  const t = s.request('POST', 'api/tasks', { name: 'x', project_id: p.id, estimate: 15 });
+  assert.equal(t.estimate, 15);
+  assert.equal(s.request('POST', 'api/tasks', { name: 'y', project_id: p.id }).estimate, null, 'absent means none');
+  assert.equal(s.request('PUT', `api/tasks/${t.id}`, { name: 'x2' }).estimate, 15, 'update without the field keeps it');
+  assert.equal(s.request('PUT', `api/tasks/${t.id}`, { estimate: 25 }).estimate, 25);
+  assert.equal(s.request('PUT', `api/tasks/${t.id}`, { estimate: null }).estimate, null, 'null clears');
+  for (const bad of [0, 721, 2.5, 'abc'])
+    for (const [m, path] of [['POST', 'api/tasks'], ['PUT', `api/tasks/${t.id}`]])
+      expectStatus(() => s.request(m, path, { name: 'z', project_id: p.id, estimate: bad }), 400);
+});
+
+test('estimate survives export and import; old data and backups read as null', () => {
+  const s = fresh();
+  const p = s.request('POST', 'api/projects', { name: 'a' });
+  const t = s.request('POST', 'api/tasks', { name: 'x', project_id: p.id, estimate: 15 });
+  const dump = s.request('GET', 'api/export');
+  assert.equal(dump.tasks[0].estimate, 15);
+  const s2 = fresh(); s2.request('POST', 'api/import', dump);
+  assert.equal(s2.request('GET', 'api/state').tasks[0].estimate, 15, 'replace keeps it');
+  const s3 = fresh(); s3.request('POST', 'api/import?mode=merge', dump);
+  assert.equal(s3.request('GET', 'api/state').tasks[0].estimate, 15, 'merge keeps it');
+  delete dump.tasks[0].estimate;
+  const s4 = fresh(); s4.request('POST', 'api/import', dump);
+  assert.equal(s4.request('GET', 'api/state').tasks[0].estimate, null, 'backup without the field');
+  dump.tasks[0].estimate = 900;
+  expectStatus(() => fresh().request('POST', 'api/import', dump), 400);
+  const st = memStorage();
+  st.setItem(KEY, JSON.stringify({ version: VERSION, projects: [{ id: 'p', name: 'a', color: '#000', archived: 0, created: 1 }],
+    tasks: [{ id: 't', project_id: 'p', parent_id: null, name: 'x', completed: 0, created: 1 }], records: [] }));
+  assert.equal(createStore(st).request('GET', 'api/state').tasks[0].estimate, null, 'stored before estimates existed');
+  void t;
+});
+
+test('start on a task with an estimate counts down what is left, ignoring minutes', () => {
+  const s = fresh();
+  const p = s.request('POST', 'api/projects', { name: 'a' });
+  const t = s.request('POST', 'api/tasks', { name: 'x', project_id: p.id, estimate: 15 });
+  const sub = s.request('POST', 'api/tasks', { name: 'sub', project_id: p.id, parent_id: t.id });
+  const t0 = Math.floor(Date.now() / 1000) - 86400;
+  s.request('POST', 'api/records', { project_id: p.id, task_id: t.id, start: t0, end: t0 + 300 });
+  s.request('POST', 'api/records', { project_id: p.id, task_id: sub.id, start: t0 + 1000, end: t0 + 1600 });  // sub-task: does not count
+  s.request('POST', 'api/records', { project_id: p.id, task_id: null, start: t0 + 2000, end: t0 + 2600 });  // project only: does not count
+  let r = s.request('POST', 'api/timer/start', { project_id: p.id, task_id: t.id, minutes: 60 });
+  assert.equal(r.planned_end, r.start + 600, '15 min estimate minus 5 tracked, minutes ignored');
+  s.request('PUT', `api/records/${r.id}`, { start: r.start - 700, end: r.start - 100, planned_end: null });  // pretend 10 more minutes passed
+  r = s.request('POST', 'api/timer/start', { project_id: p.id, task_id: t.id });
+  assert.equal(r.planned_end, null, 'estimate used up: stopwatch');
+  s.request('POST', 'api/timer/stop');
+  const plain = s.request('POST', 'api/timer/start', { project_id: p.id, task_id: sub.id, minutes: 3 });
+  assert.equal(plain.planned_end, plain.start + 180, 'a task without an estimate still honours minutes');
+});
+
+test('remaining time is in seconds and a running record on the task does not count twice', () => {
+  const s = fresh();
+  const p = s.request('POST', 'api/projects', { name: 'a' });
+  const t = s.request('POST', 'api/tasks', { name: 'x', project_id: p.id, estimate: 1 });
+  const t0 = Math.floor(Date.now() / 1000) - 86400;
+  s.request('POST', 'api/records', { project_id: p.id, task_id: t.id, start: t0, end: t0 + 45 });
+  const r = s.request('POST', 'api/timer/start', { project_id: p.id, task_id: t.id });
+  assert.equal(r.planned_end, r.start + 15);
+});

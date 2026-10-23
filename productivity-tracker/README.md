@@ -62,10 +62,19 @@ The timer button in the top bar toggles a ticking sound that plays only while a 
 countdown runs. The clip is "Household kitchen timer" from Pixabay (`sounds/kitchen-timer.mp3`),
 Pixabay Content License.
 
+## Estimates
+
+End a task name with "!" and a length to give it an estimate: "write intro !15 min", "!15m",
+"!1h30m", "!1:30" or "!90" (minutes, 1 to 720). Play on that task counts down what is left of the
+estimate after the time already tracked on it, whatever the mode row is set to; once the estimate
+is used up, play starts a stopwatch. The task row shows "15m", "10m left of 15m" or "over by 3m of
+15m". Edit task has an Estimate field; blank clears it, and a length typed after "!" in the name
+wins over the field. Sub-task time does not count toward a parent's estimate.
+
 ## Tour
 
-Menu, Guided tour: seven cards over the Projects view that point at the mode row, a play button,
-the running bar, the tabs, and the menu for backup and theme. On a fresh copy the empty Projects
+Menu, Guided tour: eight cards over the Projects view: a welcome, the mode row, a play button,
+tasks (Markdown lists and sub-tasks), the running bar, the tabs, and the menu for backup and theme. On a fresh copy the empty Projects
 view also offers "Take the tour" until it has been finished or skipped once. The tour never
 starts on its own and changes no data.
 
@@ -79,10 +88,11 @@ project. Deleting a task deletes its sub-tasks after a confirmation.
 
 In the New task dialog, paste text with line breaks to add one task per non-empty line. Leading
 list markers such as "- ", "1. " or "[ ] " are dropped. More than five lines ask for confirmation.
+Each line can end with "!" and a length for an estimate.
 
 ## Keyboard
 
-Press ? for the list. 1 to 4 switch views, N new project, T add a task to the open project, R add
+Press ? for the list. 1 to 4 switch views, N new project, A add a task to the open project, R add
 a record, S stops the timer or starts one on the open project or else the last tracked project,
 M switches stopwatch and countdown, left and right arrows move the Calendar month, comma opens
 the menu, Esc closes a dialog or goes back to the project list. Keys do nothing while you type

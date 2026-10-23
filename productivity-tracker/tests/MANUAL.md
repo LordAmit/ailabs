@@ -94,7 +94,7 @@ About 15 minutes.
 - [ ] Press ?: the list opens; press ? again or Esc: it closes. Menu, Help, Keyboard shortcuts opens the same list
 - [ ] 1, 2, 3, 4 switch to Projects, Reports, Timeline, Calendar
 - [ ] N opens New project; type a name containing n, t, r, s: the letters go into the field and nothing else happens
-- [ ] Open a project, press T: New task opens. Esc closes it; Esc again returns to the project list
+- [ ] Open a project, press A: New task opens. Esc closes it; Esc again returns to the project list
 - [ ] R opens Add record
 - [ ] With nothing running, S starts a timer on the open project, or on the last tracked project from the list view; S again stops it
 - [ ] M toggles Stopwatch and Countdown with the drawer animation
@@ -118,6 +118,18 @@ About 15 minutes.
 - [ ] Add record: the Task list shows the three tasks indented in tree order
 - [ ] Click "Chapter 2", Delete: all three rows disappear at once, the undo bar reads "Deleted "Chapter 2" and 2 sub-tasks"; Undo brings all three back with their time
 - [ ] Export, then Import with Replace all: the tree comes back as it was
+
+## Estimates
+
+- [ ] + Add task, type "write intro !15 min": the row reads "write intro" with "15M" on the right; "draft!25min" (no space) also works
+- [ ] + Add task, type "Ship it!": the name keeps the mark and there is no estimate line
+- [ ] Paste three lines, two ending in "!20" and "!1h": three tasks, two with estimate lines ("20M", "1H")
+- [ ] With Stopwatch selected, play on "write intro": the running bar shows the hourglass and 15:00 counting down; stop after a minute: the row reads "14m left of 15m"
+- [ ] Add record on "write intro" of 20 minutes: the row reads "over by 6m of 15m"; play now starts a stopwatch, with Countdown selected too
+- [ ] Play on a task without an estimate with Countdown 25 selected: a 25 minute countdown, as before
+- [ ] Edit task on "write intro": the Estimate field shows 15; clear it, Save: the line is gone and play starts a stopwatch; Edit again, type "write intro !45" in Name with 30 in the field, Save: the row reads "45M"
+- [ ] Mark "write intro" done: the estimate line stays
+- [ ] Export, then Import with Replace all: the estimates come back
 
 ## Undo
 

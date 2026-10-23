@@ -406,6 +406,83 @@ Note: Task 12 moved `static/` and `templates/index.html` into `web/`. On 2026-10
 
 **Estimated scope:** S
 
+## Task 23: Task line parser
+
+**Description:** `parseTaskLine(text)` in store.js, exported with createStore: splits at the last "!" into name and estimate in minutes, 1 to 720, or returns the whole text as the name. Spec: tasks/spec-task-estimate.md, Parsing.
+
+**Acceptance criteria:**
+- [x] "do blah !15 min", "do blah!15min", "do blah !15m", "do blah !1h", "do blah !1h30m", "do blah !1:30", "do blah !90" give name "do blah" and the expected minutes
+- [x] "name only", "Ship it!", "a !b", "x !0", "x !721", "x !2.5", "!15" give the full trimmed text as name and estimate null
+- [x] "Ship it! !15 min" gives "Ship it!" and 15
+
+**Verification:**
+- [x] `node --test tests/store.test.mjs` passes with one test per group above; `node --check store.js` (2026-10-22)
+
+**Dependencies:** None
+
+**Files touched:** store.js, tests/store.test.mjs
+
+**Estimated scope:** S
+
+## Task 24: Estimate field and start rule in the store
+
+**Description:** `estimate` on tasks (create, update, clear, load of old data, export, import validation) and the timer start rule: a task with an estimate starts a countdown of the remaining seconds, or a stopwatch when nothing is left; `minutes` is ignored for such a task. Spec: Store section.
+
+**Acceptance criteria:**
+- [x] POST api/tasks with estimate 15 stores 15; without it stores null; PUT with null clears; 0, 721, 2.5, "abc" give 400 on both
+- [x] Old stored data and version 2 backups without the field load with null; export carries the field; import rejects a bad value
+- [x] Start on a task with estimate 15 and 5 minutes of ended records gives planned_end = start + 600; with 15 or more gives null; a `minutes` in the body changes nothing; sub-task records do not count
+- [x] Start on a task without an estimate still honours `minutes`
+
+**Verification:**
+- [x] `node --test tests/store.test.mjs` passes; `node --check store.js`
+
+**Dependencies:** None (same files as Task 23, so run after it)
+
+**Files touched:** store.js, tests/store.test.mjs
+
+**Estimated scope:** M
+
+## Task 25: Dialogs, task row and start call
+
+**Description:** New task and paste use the parser; Edit task gets an Estimate field and parses Name; the task row shows the estimate line; startTimer sends `minutes` only when the Countdown chip is on and the task has no estimate. Spec: Frontend section.
+
+**Acceptance criteria:**
+- [x] Typing "write intro !15 min" in New task creates "write intro" with a 15 minute estimate; the hint under Name names the "!" form
+- [x] A pasted three-line list with two lengths creates three tasks, two with estimates
+- [x] Edit task shows the estimate, a blank clears it, a length in Name replaces the field's value
+- [x] Row reads "15m" with nothing tracked, "10m left of 15m" after 5 minutes, "over by 3m of 15m" after 18; hours as "1h30m"; the running record counts live; sub-task time does not count
+- [x] Play on a task with time left starts a countdown whatever the chip is; with none left, a stopwatch; a task without an estimate behaves as before
+
+**Verification:**
+- [x] `node --check app.js`; headless Chrome run over New task, paste, Edit task, the row and play in both chip modes: 20 checks pass (2026-10-22)
+- [ ] Manual check by user: tests/MANUAL.md, Estimates section
+
+**Dependencies:** Tasks 23 and 24
+
+**Files touched:** app.js, style.css
+
+**Estimated scope:** M
+
+## Task 26: Docs and version
+
+**Description:** Fold the feature spec into SPEC.md (story 20, Data Model, Operations, UI); README "Estimates" paragraph under Timers; tour sentence on the Stopwatch or countdown card; tests/MANUAL.md section; DECISIONS.md entry for 2026-10-22 ("!" separator, Edit parses too, completed tasks keep the line, no roll-up); TODO.md; version label 0.1.0-alpha.6.
+
+**Acceptance criteria:**
+- [x] SPEC.md describes the app as it now is; tasks/spec-task-estimate.md removed, its content is in SPEC.md story 20 and DECISIONS.md
+- [x] README, MANUAL.md, DECISIONS.md and the tour text match the built behaviour
+- [x] index.html reads version 0.1.0-alpha.6
+
+**Verification:**
+- [x] `make check` and `make test` pass (34 tests); success criteria 1 to 7 covered by the store tests and the headless run (2026-10-22)
+
+**Dependencies:** Task 25
+
+**Files touched:** SPEC.md, README.md, DECISIONS.md, TODO.md, tests/MANUAL.md, app.js (tour text), index.html
+
+**Estimated scope:** S
+
 ## Checkpoint: Complete
-- [ ] SPEC.md success criteria 1 to 16 met
+
+- [ ] SPEC.md success criteria 1 to 20 met
 - [ ] Ready for review
