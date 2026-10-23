@@ -39,8 +39,8 @@ About 15 minutes.
 - [ ] Headings render in Archivo, body in Inter, labels and times in a monospace; the empty state is italic serif
 - [ ] No rounded corners anywhere; buttons, cards, chips, dialog and calendar cells are rectangles with 1px borders
 - [ ] Save buttons are inverted: dark on light theme, light on dark theme
-- [ ] Menu: Theme System follows the OS setting; Light and Dark override it
-- [ ] Menu: Accent Teal, Blue, Purple recolor chips, play buttons, the + button, the weekly chart
+- [ ] Settings: Theme System follows the OS setting; Light and Dark override it
+- [ ] Settings: Accent Teal, Blue, Purple recolor chips, play buttons, the + button, the weekly chart
 - [ ] Reload: theme and accent persist, no flash of the other theme
 - [ ] In Light: all four views, the running bar, and all three dialogs are readable; date inputs are light
 - [ ] In Dark: same check
@@ -65,7 +65,7 @@ About 15 minutes.
 
 ## Install and offline
 
-- [ ] No badge next to the title and no Data source row in the menu
+- [ ] No badge next to the title and no Data source row in Settings; the Settings heading is followed by the "Offline and privacy friendly" line, and every Data and Help row has an icon on the left
 - [ ] Chrome address bar shows an install icon; install; the app opens in its own window
 - [ ] Installed copy: turn Wi-Fi off, open it; the page loads with the same fonts and everything works
 
@@ -81,17 +81,17 @@ About 15 minutes.
 ## Guided tour
 
 - [ ] Fresh browser (no data): the empty Projects view shows "Take the tour" under "+ New project"; it opens the tour with a demo "Example project" card and the mode row
-- [ ] Cards 1 to 7: welcome (centered), mode row, play button, running bar (demo bar with 12:34), tabs, menu button (Backup), menu button (Theme with live chips); the counter reads "n of 7"
+- [ ] Cards 1 to 8: welcome (centered), mode row, play button, tasks (centered), running bar (demo bar with 12:34), tabs, settings button (Backup), settings button (Theme with live chips); the counter reads "n of 8"
 - [ ] Clicking the dimmed page or the highlighted control does nothing; Skip leaves at any card; Back is disabled on card 1; the last button reads Done
 - [ ] Arrow keys move between cards; Esc leaves
 - [ ] On the Theme card, tap Dark then Purple: the page changes behind the card
-- [ ] After Done or Skip: the demo card and demo bar are gone, "Take the tour" is gone from the empty state, and Menu, Help, Guided tour starts it again
+- [ ] After Done or Skip: the demo card and demo bar are gone, "Take the tour" is gone from the empty state, and Settings, Help, Guided tour starts it again
 - [ ] With a project and a timer running: the tour points at the real play button and the real running bar; stored data (DevTools, localStorage `productivity.data`) is unchanged afterwards
 - [ ] Phone width: every card fits on screen next to its control
 
 ## Keyboard shortcuts
 
-- [ ] Press ?: the list opens; press ? again or Esc: it closes. Menu, Help, Keyboard shortcuts opens the same list
+- [ ] Press ?: the list opens; press ? again or Esc: it closes. Settings, Help, Keyboard shortcuts opens the same list
 - [ ] 1, 2, 3, 4 switch to Projects, Reports, Timeline, Calendar
 - [ ] N opens New project; type a name containing n, t, r, s: the letters go into the field and nothing else happens
 - [ ] Open a project, press A: New task opens. Esc closes it; Esc again returns to the project list
@@ -99,7 +99,7 @@ About 15 minutes.
 - [ ] With nothing running, S starts a timer on the open project, or on the last tracked project from the list view; S again stops it
 - [ ] M toggles Stopwatch and Countdown with the drawer animation
 - [ ] In Calendar, left and right arrows move the month
-- [ ] Comma opens the menu
+- [ ] Comma opens Settings
 - [ ] During the tour, number and letter keys do nothing; arrows and Esc still drive the tour
 
 ## Paste tasks

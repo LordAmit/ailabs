@@ -241,5 +241,7 @@ dialog h2 { margin: 0 0 18px; font-family: var(--font-display); font-size: 20px;
 .keys { display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; align-items: baseline; }
 .keys kbd { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; white-space: nowrap; border: 1px solid var(--border-strong); padding: 2px 6px; }
 .keys span { color: var(--muted); font-size: 13px; }
-.menu button { display: block; width: 100%; text-align: left; padding: 12px; border: 1px solid var(--border); margin-bottom: -1px; }
+.menu button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px; border: 1px solid var(--border); margin-bottom: -1px; }
+.menu button .ico { width: 16px; height: 16px; color: var(--muted); }
+.settings-note { font-size: 12px; margin: -10px 0 16px; }
 .menu button:hover { background: var(--surface2); }

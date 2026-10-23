@@ -100,6 +100,8 @@ The generated names contained dots, which zsh and bash cannot export. Default da
 
 **Tour text rewritten and an eighth card added** (user, 2026-10-22). The welcome card is the user's wording. The other cards were shortened to plain sentences. The mode-row card now shows the "!" estimate form, and a new Tasks card, without a target, covers pasting a Markdown list and sub-tasks.
 
+**The menu is called Settings, carries a one-line note, and its rows have icons** (user, 2026-10-22). The dialog heading, the button title and the shortcut list read "Settings". Under the heading, before Theme: "Offline and privacy friendly. Made with ❤️ using Claude." Each row under Data and Help has a muted 16px icon on the left (download, upload, folder-plus, clock-plus, compass, keyboard), drawn into the existing SVG sprite in the same stroke style. The docs call it Settings; "menu" in older entries of this file is the same dialog.
+
 ## Defects found in the generated code, 2026-10-15
 
 Listed for the record; all fixed unless noted.

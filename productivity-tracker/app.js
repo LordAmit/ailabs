@@ -654,17 +654,18 @@ function bindPrefChips(root) {
   });
 }
 function openMenu() {
-  openDialog(`<h2>Menu</h2>
+  openDialog(`<h2>Settings</h2>
+    <p class="muted settings-note">Offline and privacy friendly. Made with ❤️ using Claude.</p>
     <div class="field"><label>Theme</label><div class="chip-row">${themeChips()}</div></div>
     <div class="field"><label>Accent</label><div class="chip-row">${accentChips()}</div></div>
     <div class="field"><label>Data</label><div class="menu">
-      <button value="export">Export backup (JSON)</button>
-      <button value="import">Import backup (merge or replace)</button>
-      <button value="newproj">New project</button>
-      <button value="newrec">Add record manually</button></div></div>
+      <button value="export">${icon('download')}Export backup (JSON)</button>
+      <button value="import">${icon('upload')}Import backup (merge or replace)</button>
+      <button value="newproj">${icon('folder-plus')}New project</button>
+      <button value="newrec">${icon('clock-plus')}Add record manually</button></div></div>
     <div class="field"><label>Help</label><div class="menu">
-      <button value="tour">Guided tour</button>
-      <button value="keys">Keyboard shortcuts</button></div></div>
+      <button value="tour">${icon('compass')}Guided tour</button>
+      <button value="keys">${icon('keyboard')}Keyboard shortcuts</button></div></div>
     <div class="actions"><button class="btn" value="cancel">Close</button></div>`,
     async (_fd, action) => {
       if (action === 'export') exportBackup();
@@ -732,8 +733,8 @@ const TOUR = [
   { title: 'Tasks', text: 'Inside a project, + Add task adds a task. Paste a Markdown list into the Name field to add one task per line; list markers like "- " and "1. " are dropped. A line can carry a countdown timer too, for example "- Write intro !25 min". Press + Sub on a task row to add a sub-task, up to three levels.' },
   { target: '#runbar', title: 'The running bar', text: 'This bar stays at the bottom of every view while a timer runs. It shows a live clock. The square button stops the timer.', demoRun: true },
   { target: '.tabs', title: 'Four views', text: 'Projects lists your projects. Reports shows totals and charts for a period. Timeline lists records by day; tap a record to edit it. Calendar shows a month with a total for each day.' },
-  { target: '#menuBtn', title: 'Backup', text: 'The menu has Export, which saves everything to a JSON file, and Import, which merges a file into your data or replaces it. To use two devices, export on one and import on the other.' },
-  { target: '#menuBtn', title: 'Theme', text: 'The theme and the accent color are in the same menu. You can also change them here.', chips: true },
+  { target: '#menuBtn', title: 'Backup', text: 'Settings has Export, which saves everything to a JSON file, and Import, which merges a file into your data or replaces it. To use two devices, export on one and import on the other.' },
+  { target: '#menuBtn', title: 'Theme', text: 'The theme and the accent color are in Settings too. You can also change them here.', chips: true },
 ];
 let tourStep = -1;  // index into TOUR while the tour is open, otherwise -1
 const tourEl = $('#tour');
@@ -821,7 +822,7 @@ addEventListener('scroll', replaceTour, { passive: true });
 // Single keys with no modifier, ignored while typing in a field, while a dialog is open, and
 // during the tour. "?" opens the list; the same list is in the menu under Help.
 const SHORTCUTS = [
-  ['?', 'This list'],
+  ['?', 'Keyboard shortcuts'],
   ['1 2 3 4', 'Projects, Reports, Timeline, Calendar'],
   ['N', 'New project'],
   ['A', 'Add a task to the open project'],
@@ -829,7 +830,7 @@ const SHORTCUTS = [
   ['S', 'Stop the timer. If none runs, start one on the open project, or else on the last tracked project'],
   ['M', 'Switch between stopwatch and countdown'],
   ['\u2190 \u2192', 'Previous and next month in Calendar'],
-  [',', 'Menu'],
+  [',', 'Settings'],
   ['Esc', 'Close a dialog, or back to the project list'],
 ];
 function openShortcuts() {
