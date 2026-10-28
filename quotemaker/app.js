@@ -31,6 +31,7 @@ const uploadedFontsList = document.getElementById('uploaded-fonts-list');
 const btnDownload = document.getElementById('btn-download');
 const btnReset = document.getElementById('btn-reset');
 const btnResetDesign = document.getElementById('btn-reset-design');
+const btnCopyLink = document.getElementById('btn-copy-link');
 const exportCanvas = document.getElementById('export-canvas');
 const canvasWatermark = document.getElementById('canvas-watermark');
 
@@ -68,6 +69,9 @@ async function init() {
     if (btnResetDesign) {
         btnResetDesign.addEventListener('click', resetDesignSettings);
     }
+    if (btnCopyLink) {
+        btnCopyLink.addEventListener('click', copyShareLink);
+    }
     markdownInput.addEventListener('keydown', handleEditorShortcuts);
     window.addEventListener('resize', resizePreview);
 
@@ -104,6 +108,10 @@ async function init() {
     } catch (e) {
         console.error("IndexedDB initialization failed:", e);
     }
+
+    // A shared link overrides the defaults. This runs after custom fonts are
+    // registered so a link can name an uploaded font.
+    applyStateFromURL();
 
     // Set initial preview
     updatePreview();
@@ -680,7 +688,113 @@ function resizePreview() {
     box.style.setProperty('--preview-scale', scale);
 }
 
+// Shareable link. The design state travels in the URL hash as readable
+// parameters, so a link can be written by hand (or by an assistant) and opened
+// directly. The hash is never sent to the server and the service worker never
+// sees it, so GitHub Pages and offline mode are unaffected.
+//
+//   #text=<markdown>&header=<hex>&bold=<hex>&underline=<hex>
+//    &hfont=<family>&bfont=<family>&hsize=<px>&bsize=<px>
+//    &bg=<template-N>&wm=<watermark>&wmshow=<1|0>
+//
+// Every parameter is optional. Absent, malformed, or unknown values are
+// ignored and the control keeps its current value.
 
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
+// Primary family name of a font stack:
+// "'Playfair Display', Georgia, serif" -> "Playfair Display".
+function primaryFamily(stack) {
+    return stack.split(',')[0].replace(/['"]/g, '').trim();
+}
+
+// Resolve a font query to a select option. An exact primary-family match wins,
+// otherwise the first option whose stack contains the query. The exact pass
+// matters: "system-ui" must not resolve to "Inter, system-ui, sans-serif".
+function findFontOption(select, query) {
+    const q = (query || '').trim().toLowerCase();
+    if (!q) return null;
+    const options = [...select.options];
+    return options.find(opt => primaryFamily(opt.value).toLowerCase() === q)
+        || options.find(opt => opt.value.toLowerCase().includes(q))
+        || null;
+}
+
+function clampSliderValue(slider, raw) {
+    const n = parseInt(raw, 10);
+    if (Number.isNaN(n)) return null;
+    return Math.min(Math.max(n, parseInt(slider.min, 10)), parseInt(slider.max, 10));
+}
+
+// Copy hash parameters into the inputs. The caller runs the update functions
+// afterwards, exactly as it does for the defaults.
+function applyStateFromURL() {
+    const hash = location.hash.replace(/^#/, '');
+    if (!hash) return;
+    const params = new URLSearchParams(hash);
+
+    const text = params.get('text');
+    if (text !== null) markdownInput.value = text;
+
+    const colorInputs = { header: colorHeader, bold: colorBold, underline: colorItalic };
+    for (const [key, input] of Object.entries(colorInputs)) {
+        const value = params.get(key);
+        if (value && HEX_COLOR.test(value)) input.value = value.toLowerCase();
+    }
+
+    const headerFont = findFontOption(fontHeaderSelect, params.get('hfont'));
+    if (headerFont) fontHeaderSelect.value = headerFont.value;
+    const bodyFont = findFontOption(fontBodySelect, params.get('bfont'));
+    if (bodyFont) fontBodySelect.value = bodyFont.value;
+
+    const headerSize = clampSliderValue(fontSizeHeaderSlider, params.get('hsize'));
+    if (headerSize !== null) fontSizeHeaderSlider.value = headerSize;
+    const bodySize = clampSliderValue(fontSizeBodySlider, params.get('bsize'));
+    if (bodySize !== null) fontSizeBodySlider.value = bodySize;
+
+    const bg = params.get('bg');
+    if (bg && [...bgSelect.options].some(opt => opt.value === bg)) bgSelect.value = bg;
+
+    const wm = params.get('wm');
+    if (wm !== null) watermarkInput.value = wm;
+
+    const wmshow = params.get('wmshow');
+    if (wmshow !== null) {
+        watermarkToggle.checked = !['0', 'false', 'no'].includes(wmshow.toLowerCase());
+    }
+}
+
+// Build a link that reproduces the current inputs.
+function buildShareURL() {
+    const params = new URLSearchParams();
+    params.set('text', markdownInput.value);
+    params.set('header', colorHeader.value);
+    params.set('bold', colorBold.value);
+    params.set('underline', colorItalic.value);
+    params.set('hfont', primaryFamily(fontHeaderSelect.value));
+    params.set('bfont', primaryFamily(fontBodySelect.value));
+    params.set('hsize', fontSizeHeaderSlider.value);
+    params.set('bsize', fontSizeBodySlider.value);
+    params.set('bg', bgSelect.value);
+    params.set('wm', watermarkInput.value);
+    params.set('wmshow', watermarkToggle.checked ? '1' : '0');
+    return location.href.split('#')[0] + '#' + params.toString();
+}
+
+async function copyShareLink() {
+    const url = buildShareURL();
+    const originalLabel = btnCopyLink.textContent;
+    try {
+        await navigator.clipboard.writeText(url);
+        btnCopyLink.textContent = 'Link Copied';
+    } catch (err) {
+        // Clipboard access can be refused (insecure context, permissions).
+        // Put the link in the address bar instead so it can be copied there.
+        location.hash = url.slice(url.indexOf('#') + 1);
+        btnCopyLink.textContent = 'Link in address bar';
+    }
+    setTimeout(() => { btnCopyLink.textContent = originalLabel; }, 1800);
+}
 
 // Launch the app
 window.addEventListener('DOMContentLoaded', init);

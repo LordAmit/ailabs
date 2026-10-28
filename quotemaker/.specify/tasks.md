@@ -156,3 +156,19 @@ When a new feature or bug fix is requested:
     *   `[ ]` Verify service worker activates.
     *   `[ ]` Verify caching works and application is usable offline.
 
+---
+
+### Task-14 - Shareable Link
+
+*   **Requirements Changed:** [specify.md:38-41](file:///Users/amitsealami/git/antigravity/quotemaker/.specify/specify.md#L38-L41)
+*   **Architecture Changed:** [plan.md:34](file:///Users/amitsealami/git/antigravity/quotemaker/.specify/plan.md#L34)
+*   **Action Items:**
+    *   `[x]` Add a "Copy Link" button (`#btn-copy-link`) to the sticky actions bar in `index.html`.
+    *   `[x]` Implement applyStateFromURL(), buildShareURL(), and copyShareLink() in `app.js`; call applyStateFromURL() at startup after custom fonts load.
+    *   `[x]` Bump the Service Worker cache name in `sw.js` so installed copies fetch the new `app.js`.
+*   **Verification Checklist:**
+    *   `[ ]` Open a handwritten link with every parameter and confirm each control and the preview reflect it.
+    *   `[ ]` Click Copy Link, open the copied URL in a fresh tab, and confirm the same content and design appear.
+    *   `[ ]` Open the page with no hash and confirm it behaves exactly as before.
+    *   `[ ]` Confirm malformed values (bad color, unknown template, out-of-range size) are ignored or clamped.
+
