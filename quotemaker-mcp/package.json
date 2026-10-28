@@ -1,0 +1,21 @@
+{
+  "name": "quotemaker-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that renders Quote Maker images through the web app's own export",
+  "type": "module",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test \"test/*.test.js\"",
+    "render": "node src/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "playwright": "1.64.1",
+    "smol-toml": "1.9.1"
+  }
+}

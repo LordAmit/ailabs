@@ -1,0 +1,10 @@
+# Folder that holds the Quote Maker web app (index.html, app.js, style.css).
+# Relative paths resolve against the directory that contains this file.
+app_dir = "../quotemaker"
+
+# Where rendered JPEGs are written unless a call passes output_dir.
+quotes_dir = "quotes"
+
+# When set, the server opens this page instead of serving app_dir.
+# Example: "https://daspoi.github.io/quotemaker/"
+app_url = ""
