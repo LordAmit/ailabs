@@ -13,7 +13,7 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ffd54f">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
-    
+
     <!-- Local offline dependencies -->
     <script src="lib/marked.min.js"></script>
     <script src="lib/html2canvas.min.js"></script>
@@ -33,20 +33,20 @@
                 <h1>Quote Maker</h1>
                 <p>Create elegant book quotes for sharing</p>
             </div>
- 
+
             <div class="sidebar-content-scrollable">
                 <div class="control-group">
                     <label for="markdown-input">Content (Markdown)</label>
                     <textarea id="markdown-input" placeholder="Type your markdown here..."></textarea>
                 </div>
- 
+
                 <details class="design-settings">
                     <summary>Customization Settings</summary>
                     <div class="settings-content">
                         <!-- Header Style Group -->
                         <div class="settings-section">
                             <h3 class="settings-section-title">Header Style</h3>
-                            
+
                             <div class="control-group inline-group">
                                 <div class="control-item">
                                     <label for="color-header">Header Highlight</label>
@@ -130,7 +130,7 @@
 
                         <div class="control-group">
                             <label for="watermark-input">Watermark Text</label>
-                            <input type="text" id="watermark-input" value="@amitsealami" placeholder="e.g. @username">
+                            <input type="text" id="watermark-input" value="@username" placeholder="e.g. @username">
                             <div class="checkbox-item">
                                 <input type="checkbox" id="watermark-toggle" checked>
                                 <label for="watermark-toggle">Show Watermark</label>
@@ -154,10 +154,10 @@
                     </div>
                 </details>
             </div>
- 
+
             <div class="sidebar-actions-sticky">
                 <button type="button" id="btn-download" class="btn-primary">Download Image (3:4)</button>
- 
+
                 <div class="sidebar-footer">
                     <button type="button" id="btn-reset" class="btn-danger">Reset App Data</button>
                 </div>
@@ -173,7 +173,7 @@
                         <div id="rendered-content" class="rendered-content">
                             <!-- Dynamic Markdown Render Content -->
                         </div>
-                        <div id="canvas-watermark" class="canvas-watermark">@amitsealami</div>
+                        <div id="canvas-watermark" class="canvas-watermark">@username</div>
                     </div>
                 </div>
             </div>

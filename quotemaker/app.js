@@ -35,9 +35,9 @@ const exportCanvas = document.getElementById('export-canvas');
 const canvasWatermark = document.getElementById('canvas-watermark');
 
 // Default initial markdown text
-const defaultMarkdown = `# Header herex
+const defaultMarkdown = `# Header here
 
-Text content here. We can use bullet lists: 
+Text content here. We can use bullet lists:
 
 - item 1
 - item 2
@@ -151,7 +151,7 @@ function wrapTextNodes(node) {
         const text = node.textContent;
         const parts = text.split(/(\s+)/);
         const fragment = document.createDocumentFragment();
-        
+
         parts.forEach(part => {
             if (part.length > 0) {
                 if (/\s+/.test(part)) {
@@ -164,11 +164,11 @@ function wrapTextNodes(node) {
                 }
             }
         });
-        
+
         node.parentNode.replaceChild(fragment, node);
         return;
     }
-    
+
     const children = Array.from(node.childNodes);
     children.forEach(child => {
         wrapTextNodes(child);
@@ -687,4 +687,3 @@ if ('serviceWorker' in navigator) {
             .catch(err => console.error('Service Worker registration failed:', err));
     });
 }
-
