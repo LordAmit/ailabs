@@ -124,6 +124,10 @@ async function init() {
     updateWatermark();
     updateWatermarkVisibility();
     resizePreview();
+
+    // Signal that startup is complete, including fonts and any link state,
+    // so an automated renderer knows when the preview is final.
+    document.documentElement.dataset.ready = 'true';
 }
 
 // Markdown Rendering
@@ -522,69 +526,74 @@ function prepareExportClone(clonedDoc, inlinedCSS) {
     });
 }
 
-// High-resolution Canvas image export
-async function downloadImage() {
+// High-resolution image export. Renders the 600x800 canvas through
+// html2canvas at EXPORT_SCALE and resolves to a JPEG data URL (1536x2048).
+// The download button calls this; an automated renderer can call it directly
+// through page.evaluate() and receive the same bytes a browser download gets.
+async function exportQuoteImage() {
     if (!window.html2canvas) {
-        alert("Image renderer library is still loading, please wait.");
-        return;
+        throw new Error("Image renderer library is still loading, please wait.");
     }
-
-    btnDownload.textContent = "Generating...";
-    btnDownload.disabled = true;
 
     const inlinedCSS = await resolveExportCSS();
 
     // Without the stylesheet the clone renders as unstyled text at the wrong
     // size. Fail loudly rather than hand back a broken image.
     if (!inlinedCSS.trim()) {
-        alert(
+        throw new Error(
             "Could not read the stylesheet, so the image would export unstyled.\n\n" +
             "This happens when the page is opened directly from disk (file://). " +
             "Serve the folder over http (e.g. `python3 -m http.server`) or use the installed app."
         );
-        btnDownload.textContent = "Download Image (3:4)";
-        btnDownload.disabled = false;
-        return;
     }
 
     // Ensure all custom fonts are ready in document context
-    document.fonts.ready.then(() => {
-        html2canvas(exportCanvas, {
-            scale: EXPORT_SCALE,
-            // prepareExportClone() moves the canvas to the document origin, so
-            // the capture region is fixed regardless of preview scale/scroll.
-            x: 0,
-            y: 0,
-            width: EXPORT_WIDTH,
-            height: EXPORT_HEIGHT,
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: Math.max(document.documentElement.clientWidth, EXPORT_WIDTH),
-            windowHeight: Math.max(document.documentElement.clientHeight, EXPORT_HEIGHT),
-            useCORS: true,
-            // Must stay false: a tainted canvas makes toDataURL() throw
-            // SecurityError. Better to drop an unloadable background than to
-            // fail the whole export.
-            allowTaint: false,
-            // JPEG has no alpha; transparent pixels would flatten to black.
-            backgroundColor: '#ffffff',
-            logging: false,
-            onclone: (clonedDoc) => prepareExportClone(clonedDoc, inlinedCSS)
-        }).then((canvas) => {
-            const link = document.createElement('a');
-            link.download = `quote_${Date.now()}.jpg`;
-            link.href = canvas.toDataURL('image/jpeg', 0.95);
-            link.click();
+    await document.fonts.ready;
 
-            btnDownload.textContent = "Download Image (3:4)";
-            btnDownload.disabled = false;
-        }).catch((err) => {
-            console.error("Image generation failed", err);
-            alert(`Could not generate image.\n\n${err && (err.message || err)}`);
-            btnDownload.textContent = "Download Image (3:4)";
-            btnDownload.disabled = false;
-        });
+    const canvas = await html2canvas(exportCanvas, {
+        scale: EXPORT_SCALE,
+        // prepareExportClone() moves the canvas to the document origin, so
+        // the capture region is fixed regardless of preview scale/scroll.
+        x: 0,
+        y: 0,
+        width: EXPORT_WIDTH,
+        height: EXPORT_HEIGHT,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: Math.max(document.documentElement.clientWidth, EXPORT_WIDTH),
+        windowHeight: Math.max(document.documentElement.clientHeight, EXPORT_HEIGHT),
+        useCORS: true,
+        // Must stay false: a tainted canvas makes toDataURL() throw
+        // SecurityError. Better to drop an unloadable background than to
+        // fail the whole export.
+        allowTaint: false,
+        // JPEG has no alpha; transparent pixels would flatten to black.
+        backgroundColor: '#ffffff',
+        logging: false,
+        onclone: (clonedDoc) => prepareExportClone(clonedDoc, inlinedCSS)
     });
+
+    return canvas.toDataURL('image/jpeg', 0.95);
+}
+
+// Download button: export, then save the result as a file.
+async function downloadImage() {
+    btnDownload.textContent = "Generating...";
+    btnDownload.disabled = true;
+
+    try {
+        const dataUrl = await exportQuoteImage();
+        const link = document.createElement('a');
+        link.download = `quote_${Date.now()}.jpg`;
+        link.href = dataUrl;
+        link.click();
+    } catch (err) {
+        console.error("Image generation failed", err);
+        alert(`Could not generate image.\n\n${err && (err.message || err)}`);
+    } finally {
+        btnDownload.textContent = "Download Image (3:4)";
+        btnDownload.disabled = false;
+    }
 }
 
 // Reset/Wipe database and reload

@@ -160,11 +160,12 @@ When a new feature or bug fix is requested:
 
 ### Task-14 - Shareable Link
 
-*   **Requirements Changed:** [specify.md:38-41](file:///Users/amitsealami/git/antigravity/quotemaker/.specify/specify.md#L38-L41)
+*   **Requirements Changed:** [specify.md:38-42](file:///Users/amitsealami/git/antigravity/quotemaker/.specify/specify.md#L38-L42)
 *   **Architecture Changed:** [plan.md:34](file:///Users/amitsealami/git/antigravity/quotemaker/.specify/plan.md#L34)
 *   **Action Items:**
     *   `[x]` Add a "Copy Link" button (`#btn-copy-link`) to the sticky actions bar in `index.html`.
     *   `[x]` Implement applyStateFromURL(), buildShareURL(), and copyShareLink() in `app.js`; call applyStateFromURL() at startup after custom fonts load.
+    *   `[x]` Set `data-ready="true"` on the root element at the end of init() in `app.js`.
     *   `[x]` Bump the Service Worker cache name in `sw.js` so installed copies fetch the new `app.js`.
 *   **Verification Checklist:**
     *   `[ ]` Open a handwritten link with every parameter and confirm each control and the preview reflect it.
@@ -172,3 +173,16 @@ When a new feature or bug fix is requested:
     *   `[ ]` Open the page with no hash and confirm it behaves exactly as before.
     *   `[ ]` Confirm malformed values (bad color, unknown template, out-of-range size) are ignored or clamped.
 
+---
+
+### Task-15 - Callable Export Function
+
+*   **Requirements Changed:** [specify.md:37](file:///Users/amitsealami/git/antigravity/quotemaker/.specify/specify.md#L37)
+*   **Architecture Changed:** [plan.md:30](file:///Users/amitsealami/git/antigravity/quotemaker/.specify/plan.md#L30)
+*   **Action Items:**
+    *   `[x]` Extract the html2canvas rendering from downloadImage() into exportQuoteImage(), which resolves to a JPEG data URL, in `app.js`.
+    *   `[x]` Reduce downloadImage() to button state, a call to exportQuoteImage(), and the file save, with the same alerts on failure.
+*   **Verification Checklist:**
+    *   `[ ]` Click Download Image in a browser and confirm a 1536x2048 JPEG is saved as before.
+    *   `[ ]` Confirm the stylesheet and renderer-missing errors still show as alerts.
+    *   `[ ]` Call exportQuoteImage() from an automated renderer and confirm the bytes match a browser download (covered by the MCP server render test).

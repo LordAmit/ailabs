@@ -34,11 +34,13 @@ This document specifies the behavior of the Quote Maker web application using EA
 ### Image Download
 *   `[REQ-QM-EXPORT-01]` When the user clicks the download button, the application shall export the 3:4 preview canvas as an image file (PNG/JPEG).
 *   `[REQ-QM-EXPORT-02]` The exported image shall have a maximum dimension of 2048px (maintaining the 3:4 ratio: 1536px x 2048px) to ensure high resolution.
+*   `[REQ-QM-EXPORT-03]` The application shall implement the export as a callable function, exportQuoteImage(), that resolves to the image as a JPEG data URL. The download button shall use this function, and an automated renderer may call it directly to obtain the same image.
 
 ### Shareable Link
 *   `[REQ-QM-LINK-01]` When the application starts with parameters in the URL hash (`text`, `header`, `bold`, `underline`, `hfont`, `bfont`, `hsize`, `bsize`, `bg`, `wm`, `wmshow`), the application shall apply each present parameter to its matching control and ignore absent, malformed, or unknown values.
 *   `[REQ-QM-LINK-02]` The application shall provide a copy-link control that places a URL reproducing the current content and design settings on the clipboard.
 *   `[REQ-QM-LINK-03]` The application shall carry link state in the URL hash only, so that it is never sent to the server and never seen by the Service Worker.
+*   `[REQ-QM-LINK-04]` When startup completes, including custom font registration and link state, the application shall set `data-ready="true"` on the root element so an automated renderer can detect that the preview is final.
 
 ## Progressive Web App (PWA)
 *   `[REQ-QM-PWA-01]` When the application is run, it shall register a Service Worker (`sw.js`) to handle offline caching.

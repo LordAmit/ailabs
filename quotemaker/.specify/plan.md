@@ -27,7 +27,7 @@ graph TD
     *   State tracking for customization inputs (colors, active font, size, watermark).
     *   Markdown parser integration (using local `marked` parser).
     *   IndexedDB wrapper to read, write, and register custom uploaded web fonts.
-    *   Image export logic using local `html2canvas` to render the preview to a 1536x2048 PNG.
+    *   Image export logic using local `html2canvas`: exportQuoteImage() renders the preview to a 1536x2048 JPEG data URL; downloadImage() calls it and saves the file.
     *   Keyboard shortcut event listeners on the markdown textarea (`Cmd/Ctrl` + `B`/`I`/`U`) to wrap selections.
     *   Reset handler to restore color pickers, font selectors, and font sizes to original defaults.
     *   A simple updateBackgroundTexture() function to toggle background class names on the export canvas, allowing CSS to load high-resolution static background images from the `images/` directory.
