@@ -138,27 +138,33 @@ function updatePreview() {
     }
 }
 
-// Helper to wrap bold words in individual spans to prevent html2canvas wrap rendering overlap bugs
+// Wrap words in bold and underlined text in individual spans. html2canvas draws
+// backgrounds and borders on an inline element's single bounding box, so a
+// span that wraps across lines gets one full-width box at the bottom instead
+// of one per line. Bold words become separate boxes; underlined words keep
+// their trailing space so the underline stays continuous within a line.
 function wrapBoldWords(container) {
-    const elements = container.querySelectorAll('strong');
-    elements.forEach(el => {
-        wrapTextNodes(el);
+    container.querySelectorAll('strong').forEach(el => {
+        wrapTextNodes(el, 'highlight-word', false);
+    });
+    container.querySelectorAll('u').forEach(el => {
+        wrapTextNodes(el, 'underline-word', true);
     });
 }
 
-function wrapTextNodes(node) {
+function wrapTextNodes(node, className, keepTrailingSpace) {
     if (node.nodeType === Node.TEXT_NODE) {
         const text = node.textContent;
-        const parts = text.split(/(\s+)/);
+        const parts = keepTrailingSpace ? text.match(/\S+\s*|\s+/g) || [] : text.split(/(\s+)/);
         const fragment = document.createDocumentFragment();
 
         parts.forEach(part => {
             if (part.length > 0) {
-                if (/\s+/.test(part)) {
+                if (/^\s+$/.test(part)) {
                     fragment.appendChild(document.createTextNode(part));
                 } else {
                     const span = document.createElement('span');
-                    span.className = 'highlight-word';
+                    span.className = className;
                     span.textContent = part;
                     fragment.appendChild(span);
                 }
@@ -171,7 +177,7 @@ function wrapTextNodes(node) {
 
     const children = Array.from(node.childNodes);
     children.forEach(child => {
-        wrapTextNodes(child);
+        wrapTextNodes(child, className, keepTrailingSpace);
     });
 }
 

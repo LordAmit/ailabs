@@ -763,6 +763,11 @@ input[type="text"]:focus {
 /* Underline text u is styled with custom color */
 .rendered-content u {
     text-decoration: none;
+    display: inline;
+}
+/* Per-word spans (see wrapBoldWords in app.js) so html2canvas draws one
+   border per line instead of one box spanning the wrapped element. */
+.rendered-content u .underline-word {
     border-bottom: 4px solid var(--underline-italic-color);
     padding-bottom: 5px; /* Spaced to prevent overlap with bold highlights */
     display: inline;
